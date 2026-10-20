@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensei 評価</title>
+<meta name="description" content="日本の大学の先生と授業を、学生が匿名で評価・共有するサイト。">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+</head>
+<body>
+<header class="top"><div class="topin">
+  <a class="brand" href="#home" id="brand">Sensei 評価</a>
+  <div class="hr">
+    <div class="pd" id="langs"><button type="button" class="pd-btn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false"><span id="lang-cur"></span></button><ul class="pd-list" id="lang-list" role="listbox" hidden><li><button type="button" role="option" data-l="ja" lang="ja">日本語</button></li><li><button type="button" role="option" data-l="en" lang="en">English</button></li></ul></div>
+    <div class="auth" id="auth">確認中…</div>
+  </div>
+</div>
+<div class="topbar" id="bar" hidden>
+  <div class="pd mode"><button type="button" class="pd-btn" id="mode-btn" aria-haspopup="listbox" aria-expanded="false"><span id="mode-cur"></span></button><ul class="pd-list" id="mode-list" role="listbox" hidden><li><button type="button" role="option" data-m="prof"></button></li><li><button type="button" role="option" data-m="school"></button></li></ul></div>
+  <div class="fld" id="fld-prof"><label for="b-prof" id="lab-prof"></label><input id="b-prof" type="text" autocomplete="off"><ul class="dd" id="dd-prof" hidden></ul></div>
+  <div class="fld" id="fld-uni"><label for="b-uni" id="lab-uni"></label><input id="b-uni" type="text" autocomplete="off"><ul class="dd" id="dd-uni" hidden></ul></div>
+  <div class="fld" id="fld-school" hidden><label for="b-school" id="lab-school"></label><input id="b-school" type="text" autocomplete="off"><ul class="dd" id="dd-school" hidden></ul></div>
+</div></header>
+<div class="wrap">
+  <main id="app"></main>
+</div>
+<footer id="foot"><div class="fbar" aria-hidden="true"><i></i><i></i><i></i></div><div class="fin">
+  <div class="fgrid">
+    <nav class="fcol"><h2 data-fl="fgUse"></h2><a href="#help" data-fl="fHelp"></a><a href="#guidelines" data-fl="fGuide"></a><a href="#faculty" data-fl="fFaculty"></a></nav>
+    <nav class="fcol"><h2 data-fl="fgPolicy"></h2><a href="#terms" data-fl="fTerms"></a><a href="#privacy" data-fl="fPrivacy"></a><a href="#cookies" data-fl="fCookies"></a><a href="#copyright" data-fl="fCopyright"></a></nav>
+    <nav class="fcol"><h2 data-fl="fgOps"></h2><a href="#about" data-fl="fAbout"></a><a href="#contact" data-fl="fContact"></a><a href="#removal" data-fl="fRemoval2"></a><a href="#admin" id="adminlink" data-fl="fAdmin" hidden></a></nav>
+  </div>
+  <div class="fcopy"><span class="fmark" id="fmark"></span><span id="fcopy"></span></div>
+  <p id="footnote"></p>
+</div></footer>
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="/src/main.js"></script>
+</body></html>

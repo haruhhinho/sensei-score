@@ -1,6 +1,4 @@
 import "./style.css";
-import { deck } from "./deck.js";
-import { classType, makeShareCard } from "./card.js";
 import { T, LEGAL, PREFS, TERMS_VERSION } from "./i18n.js";
 import {
   sb, configured, S, t, $, esc, str, intIn, norm, flip, fmtDate, cls, hasJa, toast, rememberUni,
@@ -326,12 +324,11 @@ function renderProf(app, pid) {
     <div>
       <div class="score"><span class="n ${cls(s.n ? s.q : null)}">${s.n ? s.q.toFixed(1) : "—"}</span><span class="of">/ 5</span></div>
       <div class="basis">${esc(t("basis", s.n))}</div>
-      ${(() => { const ct = classType(s); return ct ? `<div class="ctype"><b>${esc(ct.label)}</b>${ct.att ? `<b class="att">${esc(t("attHeavy"))}</b>` : ""}<span>${esc(ct.desc)}</span></div>` : ""; })()}
       <h1 class="pname">${esc(pName(p))}${p.verified ? ` <span class="mark ok" style="font-size:12px;vertical-align:middle">${esc(t("verified"))}</span>` : ""}</h1>
       ${alt ? `<div class="altname">${esc(alt)}</div>` : ""}
       <p class="pmeta">${p.dept ? `<a href="#dept.${esc(u.id)}~${encodeURIComponent(p.dept)}" title="${esc(t("deptListOf", dName(p.dept)))}">${esc(dName(p.dept))}</a>` : esc(t("deptUnset"))}　<a href="#school.${esc(u.id)}" title="${esc(t("schoolEvalOf", uName(u)))}">${esc(uName(u))}</a></p>
       ${s.n ? `<div class="figs"><div><b>${s.again != null ? s.again + "%" : "—"}</b><span>${esc(t("again"))}</span></div><div><b>${s.d.toFixed(1)}</b><span>${esc(t("diff5"))}</span></div></div>` : ""}
-      <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#rate.${esc(pid)}">${esc(t("rateThis"))}</a>` : `<div class="notice">${esc(t("needLoginRate"))}${loginLink()}</div>`}${s.n ? `<button class="btn" id="sharecard">${esc(t("shareCard"))}</button>` : ""}</div>
+      <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#rate.${esc(pid)}">${esc(t("rateThis"))}</a>` : `<div class="notice">${esc(t("needLoginRate"))}${loginLink()}</div>`}</div>
       ${S.ISADMIN ? `<div class="row" style="margin-top:14px">${adminHide("professors", p.id, t("adminHidePage"))}</div>` : ""}
       <a class="rmlink" href="#removal.${esc(pid)}">${esc(t("removalFromProf"))}</a>
     </div>
@@ -349,30 +346,11 @@ function renderProf(app, pid) {
     <div id="tabbody"></div>
   </section>`;
   const cf = $("#cf"); if (cf) cf.onchange = () => { S.profCourse = cf.value; drawRevs(p, rs); };
-  const sc = $("#sharecard"); if (sc) sc.onclick = () => openShareCard(p, u, s);
   $("#t-rev").onclick = () => { S.profTab = "rev"; renderProf(app, pid); };
   $("#t-exam").onclick = () => { S.profTab = "exam"; renderProf(app, pid); };
   if (S.profTab === "rev") { $("#tabbody").innerHTML = '<div id="revs"></div>'; drawRevs(p, rs); }
   else drawExams(p, exams);
   drawSum(p, s);
-}
-/* SNSで共有できる画像カード */
-async function openShareCard(p, u, s) {
-  const v = modal(`<div class="mbox share"><h2>${esc(t("shareCard"))}</h2><p class="small sub">${esc(t("shareLead"))}</p><div class="sharebox">${esc(t("loading"))}</div>
-    <div class="row"><a class="btn solid" id="sc-dl">${esc(t("shareSave"))}</a><button class="btn" id="sc-share" hidden>${esc(t("shareSend"))}</button><button class="btn" data-close>${esc(t("close"))}</button></div></div>`);
-  const canvas = await makeShareCard({ name: pName(p), alt: pAlt(p), uni: uName(u), dept: dName(p.dept), s, type: classType(s) });
-  if (!v.isConnected) return;
-  const url = canvas.toDataURL("image/png"), fname = `sensei-score-${p.id.slice(0, 8)}.png`;
-  const img = new Image(); img.src = url; img.alt = t("shareCard");
-  const box = v.querySelector(".sharebox"); box.textContent = ""; box.appendChild(img);
-  const dl = v.querySelector("#sc-dl"); dl.href = url; dl.download = fname;
-  canvas.toBlob(blob => {
-    if (!blob || !navigator.canShare) return;
-    const file = new File([blob], fname, { type: "image/png" });
-    if (!navigator.canShare({ files: [file] })) return;
-    const b = v.querySelector("#sc-share"); b.hidden = false;
-    b.onclick = () => navigator.share({ files: [file], title: t("brand"), text: `${pName(p)}（${uName(u)}）｜${t("brand")}`, url: location.href }).catch(() => {});
-  });
 }
 function distChart(s) {
   const max = Math.max(...[1, 2, 3, 4, 5].map(k => s.dist[k]), 1), q5 = t("q5");
@@ -520,40 +498,54 @@ function renderRate(app, pid) {
   if (!p) { app.innerHTML = notFound(); return; }
   const u = uniById(p.uni) || { id: p.uni };
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#p." + pid, "← " + pName(p)])}<div class="notice"><b>${esc(t("needLoginRate"))}</b>${loginLink()}</div>`; return; }
-  if (!S.form || S.form.kind !== "rate" || S.form.pid !== pid) S.form = { kind: "rate", pid, course: "", q: null, d: null, again: null, att: null, grade: null, text: "" };
+  if (!S.form || S.form.kind !== "rate" || S.form.pid !== pid) S.form = { kind: "rate", pid, course: "", q: null, d: null, again: null, att: null, grade: "", text: "" };
   const f = S.form, rs = peek("revs:" + pid);
   const courses = Array.isArray(rs) ? [...new Set(rs.map(r => r.course))] : [];
-  const G = t("grades");
+  const q5 = t("q5"), d5 = t("d5"), G = t("grades");
   app.innerHTML = `
   ${crumb(["#home", t("top")], ["#u." + u.id, uName(u)], ["#p." + pid, pName(p)], [null, t("evalCrumb")])}
   <section class="title"><h1>${esc(t("rateTitle", pName(p)))}</h1><p>${esc(t("rateLead"))} <a href="#guidelines">${esc(t("guideTitle"))}</a></p></section>
-  <div id="deck"></div>
-  <div class="row deck-cancel"><a class="btn sm" href="#p.${esc(pid)}">${esc(t("cancel"))}</a></div>`;
-  const steps = [
-    { key: "course", type: "text", label: t("course"), hint: t("deckCourseHint"), required: true, datalist: courses, err: t("eCourse") },
-    { key: "q", type: "scale", label: t("ov"), labels: t("q5"), required: true },
-    { key: "d", type: "scale", label: t("diff"), labels: t("d5"), required: true },
-    { key: "again", type: "yesno", label: t("againQ"), short: t("again"), yes: t("yes"), no: t("no") },
-    { key: "att", type: "yesno", label: t("att"), yes: t("req"), no: t("opt") },
-    { key: "grade", type: "chips", label: t("gradeQ"), short: t("grade"), options: GRADES.map(g => [g, S.LANG === "en" ? `${G[g]}（${g}）` : g]) },
-    { key: "text", type: "final", label: t("comment"), hint: t("commentRule"), max: 350, submit: t("submitAI") },
-  ];
-  deck($("#deck"), steps, f, {
-    onSubmit: async ({ setMsg, checkEl, ta, button }) => {
-      if (S.busy) return;
-      const course = String(f.course || "").trim(), text = String(f.text || "").trim(), len = [...text].length;
-      if (len < 15) return setMsg(t("eShort"), 1);
-      if (len > 350) return setMsg(t("eLong"), 1);
-      S.busy = true; button.disabled = true; setMsg(t("aiChecking"));
-      try {
-        const res = await api("post-review", { professorId: pid, course, quality: f.q, difficulty: f.d, again: f.again, att: f.att, grade: f.grade || null, text, lang: S.LANG });
-        if (!res.ok) { setMsg(""); checkBox(checkEl, res.check, ta, 350); return; }
-        S.form = null; S.profCourse = ""; invalidate("revs:" + pid, "profs:" + p.uni, "prof:" + pid, "me");
-        go("p." + pid); toast(t("postedAI"));
-      } catch (err) { setMsg(errText(err), 1); }
-      finally { S.busy = false; if (button.isConnected) button.disabled = false; }
-    },
-  });
+  <form id="rf" novalidate style="display:flex;flex-direction:column;gap:20px">
+    <div class="sheet">
+      <div class="q"><label class="lb" for="f-course">${esc(t("course"))}<small>${esc(t("required"))}</small></label>
+        <div><input id="f-course" type="text" list="cl" maxlength="60" value="${esc(f.course)}"><datalist id="cl">${courses.map(c => `<option value="${esc(c)}"></option>`).join("")}</datalist></div></div>
+      <div class="q"><span class="lb">${esc(t("ov"))}<small>${esc(t("required"))}</small></span>${marks("f-q", [1, 2, 3, 4, 5].map(k => [String(k), k, q5[k]]), f.q == null ? null : String(f.q))}</div>
+      <div class="q"><span class="lb">${esc(t("diff"))}<small>${esc(t("required"))}</small></span>${marks("f-d", [1, 2, 3, 4, 5].map(k => [String(k), k, d5[k]]), f.d == null ? null : String(f.d))}</div>
+      <div class="q"><span class="lb">${esc(t("againQ"))}</span>${chips("f-again", ["1", "0"], f.again == null ? null : f.again ? "1" : "0", v => (v === "1" ? t("yes") : t("no")))}</div>
+      <div class="q"><span class="lb">${esc(t("att"))}</span>${chips("f-att", ["1", "0"], f.att == null ? null : f.att ? "1" : "0", v => (v === "1" ? t("req") : t("opt")))}</div>
+      <div class="q"><span class="lb">${esc(t("gradeQ"))}<small>${esc(t("optional"))}</small></span>${chips("f-grade", GRADES, f.grade || null, g => (S.LANG === "en" ? `${G[g]}（${g}）` : g))}</div>
+      <div class="q"><label class="lb" for="f-text">${esc(t("comment"))}<small>${esc(t("commentRule"))}</small></label>
+        <div><textarea id="f-text" class="ruled" maxlength="400">${esc(f.text)}</textarea><div class="cnt" id="f-cnt"></div></div></div>
+    </div>
+    <div id="f-check"></div>
+    <div class="row"><button class="btn solid" type="submit" id="f-sub">${esc(t("submitAI"))}</button><a class="btn" href="#p.${esc(pid)}">${esc(t("cancel"))}</a><span class="msg" id="f-msg"></span></div>
+  </form>`;
+  bindChoice("f-q", v => (f.q = v == null ? null : Number(v)), true);
+  bindChoice("f-d", v => (f.d = v == null ? null : Number(v)), true);
+  bindChoice("f-again", v => (f.again = v == null ? null : v === "1"));
+  bindChoice("f-att", v => (f.att = v == null ? null : v === "1"));
+  bindChoice("f-grade", v => (f.grade = v || ""));
+  $("#f-course").oninput = e => { f.course = e.target.value; f.started = true; };
+  const ta = $("#f-text"), cnt = () => { const n = [...ta.value].length; $("#f-cnt").textContent = t("cnt", n, 350); $("#f-cnt").classList.toggle("over", n > 350); };
+  ta.oninput = () => { f.text = ta.value; f.started = true; cnt(); }; cnt();
+  $("#rf").onsubmit = async e => {
+    e.preventDefault(); if (S.busy) return;
+    const msg = $("#f-msg"), setMsg = (m, ng) => { msg.textContent = m; msg.classList.toggle("ng", !!ng); };
+    const course = f.course.trim(), text = f.text.trim(), len = [...text].length;
+    if (!course) return setMsg(t("eCourse"), 1);
+    if (!f.q) return setMsg(t("eQ"), 1);
+    if (!f.d) return setMsg(t("eD"), 1);
+    if (len < 15) return setMsg(t("eShort"), 1);
+    if (len > 350) return setMsg(t("eLong"), 1);
+    S.busy = true; const btn = $("#f-sub"); btn.disabled = true; setMsg(t("aiChecking"));
+    try {
+      const res = await api("post-review", { professorId: pid, course, quality: f.q, difficulty: f.d, again: f.again, att: f.att, grade: f.grade || null, text, lang: S.LANG });
+      if (!res.ok) { setMsg(""); checkBox($("#f-check"), res.check, ta, 350); return; }
+      S.form = null; S.profCourse = ""; invalidate("revs:" + pid, "profs:" + p.uni, "prof:" + pid, "me");
+      go("p." + pid); toast(t("postedAI"));
+    } catch (err) { setMsg(errText(err), 1); }
+    finally { S.busy = false; if (btn.isConnected) btn.disabled = false; }
+  };
 }
 
 /* ===================================================================
@@ -723,33 +715,38 @@ function renderSchool(app, uid) {
 function renderSRate(app, uid) {
   const u = uniById(uid); if (!u) { app.innerHTML = notFound(); return; }
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#school." + uid, "← " + t("schoolEvalOf", uName(u))])}<div class="notice"><b>${esc(t("needLoginSchool"))}</b>${loginLink()}</div>`; return; }
-  if (!S.form || S.form.kind !== "school" || S.form.uid !== uid) S.form = { kind: "school", uid, text: "" };
+  if (!S.form || S.form.kind !== "school" || S.form.uid !== uid) S.form = { kind: "school", uid, s: {}, text: "" };
   const f = S.form;
   app.innerHTML = `
   ${crumb(["#home", t("top")], ["#school." + uid, t("schoolEvalOf", uName(u))], [null, t("evalCrumb")])}
   <section class="title"><h1>${esc(t("srateTitle", uName(u)))}</h1><p>${esc(t("srateLead"))}</p></section>
-  <div id="deck"></div>
-  <div class="row deck-cancel"><a class="btn sm" href="#school.${esc(uid)}">${esc(t("cancel"))}</a></div>`;
-  const lab = { 1: t("bad"), 2: "", 3: "", 4: "", 5: t("good") };
-  const steps = [
-    ...SCATS.map(c => ({ key: "s_" + c[0], type: "scale", label: scatL(c), labels: lab, required: true })),
-    { key: "text", type: "final", label: t("oneLine"), hint: t("oneLineRule"), max: 200, submit: t("post") },
-  ];
-  deck($("#deck"), steps, f, {
-    onSubmit: async ({ setMsg, checkEl, ta, button }) => {
-      if (S.busy) return;
-      const text = String(f.text || "").trim();
-      if ([...text].length > 200) return setMsg(t("eOneLong"), 1);
-      const scores = Object.fromEntries(SCATS.map(([k]) => [k, f["s_" + k]]));
-      S.busy = true; button.disabled = true; setMsg(text ? t("aiCheckingLine") : t("posting"));
-      try {
-        const res = await api("post-school", { universityId: uid, scores, text, lang: S.LANG });
-        if (!res.ok) { setMsg(""); checkBox(checkEl, res.check, ta, 200); return; }
-        S.form = null; invalidate("school:" + uid, "me"); go("school." + uid); toast(t("schoolPosted"));
-      } catch (err) { setMsg(errText(err), 1); }
-      finally { S.busy = false; if (button.isConnected) button.disabled = false; }
-    },
-  });
+  <form id="sf" novalidate style="display:flex;flex-direction:column;gap:20px">
+    <div class="sheet">
+      ${SCATS.map(c => `<div class="q"><span class="lb">${esc(scatL(c))}</span>${marks("s-" + c[0], [1, 2, 3, 4, 5].map(n => [String(n), n, n === 1 ? t("bad") : n === 5 ? t("good") : ""]), f.s[c[0]] ? String(f.s[c[0]]) : null)}</div>`).join("")}
+      <div class="q"><label class="lb" for="f-text">${esc(t("oneLine"))}<small>${esc(t("oneLineRule"))}</small></label>
+        <div><textarea id="f-text" class="ruled" maxlength="250" style="min-height:4em">${esc(f.text)}</textarea><div class="cnt" id="f-cnt"></div></div></div>
+    </div>
+    <div id="f-check"></div>
+    <div class="row"><button class="btn solid" type="submit" id="f-sub">${esc(t("post"))}</button><a class="btn" href="#school.${esc(uid)}">${esc(t("cancel"))}</a><span class="msg" id="f-msg"></span></div>
+  </form>`;
+  for (const [k] of SCATS) bindChoice("s-" + k, v => (f.s[k] = Number(v)), true);
+  const ta = $("#f-text"), cnt = () => { const n = [...ta.value].length; $("#f-cnt").textContent = t("cnt", n, 200); $("#f-cnt").classList.toggle("over", n > 200); };
+  ta.oninput = () => { f.text = ta.value; f.started = true; cnt(); }; cnt();
+  $("#sf").onsubmit = async e => {
+    e.preventDefault(); if (S.busy) return;
+    const msg = $("#f-msg"), setMsg = (m, ng) => { msg.textContent = m; msg.classList.toggle("ng", !!ng); };
+    const miss = SCATS.filter(([k]) => !f.s[k]);
+    if (miss.length) return setMsg(t("eMissing", scatL(miss[0]), miss.length), 1);
+    const text = f.text.trim();
+    if ([...text].length > 200) return setMsg(t("eOneLong"), 1);
+    S.busy = true; const btn = $("#f-sub"); btn.disabled = true; setMsg(text ? t("aiCheckingLine") : t("posting"));
+    try {
+      const res = await api("post-school", { universityId: uid, scores: f.s, text, lang: S.LANG });
+      if (!res.ok) { setMsg(""); checkBox($("#f-check"), res.check, ta, 200); return; }
+      S.form = null; invalidate("school:" + uid, "me"); go("school." + uid); toast(t("schoolPosted"));
+    } catch (err) { setMsg(errText(err), 1); }
+    finally { S.busy = false; if (btn.isConnected) btn.disabled = false; }
+  };
 }
 
 /* ===================================================================

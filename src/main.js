@@ -1325,23 +1325,30 @@ function parseCsv(text) {
 }
 function pickUnis(rows, withShort) {
   if (!rows.length) return [];
-  const head = rows[0].map(h => h.trim());
-  const col = names => head.findIndex(h => names.some(n => h.includes(n)));
-  const ci = col(["学校コード"]), ni = col(["学校名"]), pi = col(["都道府県"]), ai = col(["所在地", "住所"]), ei = col(["廃止"]);
-  const codeIdx = ci >= 0 ? ci : 0;
+  const CODE = /^[A-Z]\d{12}$/;
+  const clean = v => String(v || "").replace(/^\uFEFF/, "").trim();
+  // 見出しの行を探す（ファイルの先頭に説明の行があっても大丈夫なように、最初の15行から探す）
+  let hi = -1;
+  for (let i = 0; i < Math.min(15, rows.length); i++) if (rows[i].some(c => /学校名/.test(clean(c)))) { hi = i; break; }
+  const head = hi >= 0 ? rows[hi].map(clean) : [];
+  const col = (test, not) => head.findIndex(h => test.test(h) && !(not && not.test(h)));
+  const ni = col(/学校名/, /ふりがな|フリガナ|かな|カナ|英|旧/);
+  const pi = col(/都道府県/), ai = col(/所在地|住所/), ei = col(/廃止/);
+  const prefOf = v => { v = clean(v); if (!v) return ""; const m = v.match(/^(\d{1,2})(?!\d)/); if (m) return (PREFS[Number(m[1]) - 1] || [])[0] || ""; return (PREFS.find(([j]) => v.startsWith(j) || v === j.replace(/[都道府県]$/, "")) || [])[0] || ""; };
+  // 見出しが見つからないときは、中身から学校名らしい列を推測する
+  const guessName = r => r.map(clean).find(c => /大学|短期大学/.test(c) && !/\d/.test(c) && !/^[A-Z]\d/.test(c) && !/[()（）]/.test(c)) || "";
   const types = withShort ? ["F1", "F2"] : ["F1"];
   const list = [];
-  for (const r of rows.slice(ci >= 0 ? 1 : 0)) {
-    const code = (r[codeIdx] || "").trim();
-    if (!/^[A-Z]\d{12}$/.test(code) || !types.includes(code.slice(0, 2))) continue;
-    if (ei >= 0 && (r[ei] || "").trim()) continue;
-    const name = (r[ni >= 0 ? ni : 1] || "").trim(); if (!name) continue;
-    let pref = "";
-    const pv = pi >= 0 ? (r[pi] || "").trim() : "";
-    if (/^\d{1,2}$/.test(pv)) pref = (PREFS[Number(pv) - 1] || [])[0] || "";
-    else if (pv) pref = PREFS.find(([j]) => pv.startsWith(j) || j.startsWith(pv))?.[0] || "";
-    if (!pref && ai >= 0) pref = PREFS.find(([j]) => (r[ai] || "").startsWith(j))?.[0] || "";
-    if (!pref) { const n = Number(code.slice(3, 5)); pref = (PREFS[n - 1] || [])[0] || ""; }
+  for (const r of rows.slice(hi + 1)) {
+    const code = r.map(clean).find(c => CODE.test(c)) || "";
+    if (!code || !types.includes(code.slice(0, 2))) continue;
+    if (ei >= 0 && clean(r[ei])) continue;
+    let name = ni >= 0 ? clean(r[ni]) : "";
+    if (!name || /^[A-Z]\d/.test(name)) name = guessName(r);
+    if (!name) continue;
+    let pref = pi >= 0 ? prefOf(r[pi]) : "";
+    if (!pref && ai >= 0) pref = prefOf(r[ai]);
+    if (!pref) pref = (PREFS[Number(code.slice(2, 4)) - 1] || [])[0] || "";
     if (!pref) continue;
     list.push({ id: code, name, pref });
   }

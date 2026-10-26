@@ -87,7 +87,7 @@ async function all(q, page = 1000) {
 
 export const rowToUni = r => ({ id: r.id, name: r.name, en: r.name_en || "", kana: r.kana || "", pref: r.pref });
 export const rowToProf = r => ({
-  id: r.id, uni: r.university_id, name: r.name || "", en: r.name_en || "", kana: r.kana || "", dept: r.dept || "", verified: !!r.verified,
+  id: r.id, uni: r.university_id, name: r.name || "", en: r.name_en || "", kana: r.kana || "", dept: r.dept || "", verified: !!r.verified, mine: !!r.added_by_me,
   s: { n: r.n || 0, q: r.q == null ? null : Number(r.q), d: r.d == null ? null : Number(r.d), again: r.again_pct },
 });
 export const rowToRev = r => ({

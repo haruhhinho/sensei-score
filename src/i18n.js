@@ -36,7 +36,7 @@ ja:{
  noPerm:"このアカウントには投稿権限がありません。", quota:"保存容量の上限に達しました。", postFail:"投稿できませんでした。時間をおいてお試しください。",
  addProf:"先生を追加", needLoginAdd:"先生を追加するにはログインが必要です。",
  addLead:u=>`${u}で授業を担当している先生を登録します。日本語とローマ字の両方を入れておくと、どちらの言語で検索しても同じ先生が見つかります。`,
- nameJa:"氏名（日本語）", nameEn:"氏名（ローマ字）", oneOf:"どちらか必須", dept:"学部・学科",
+ nameJa:"氏名（日本語）", nameEn:"氏名（ローマ字）", oneOf:"どちらか必須", dept:"学部",
  addBtn:"追加する", eName:"氏名を日本語かローマ字で入力してください。", dupProf:"同じ先生がすでに登録されています：",
  adding:"追加しています…", added:"先生を追加しました", addFail:"追加できませんでした。時間をおいてお試しください。",
  deptMembers:(u,n)=>`${u}　教員 ${n}名`, name:"氏名", count:"件数", mobLine:(n,a,d)=>`${n}件・また受講したい ${a}%・難易度 ${d}`,
@@ -76,7 +76,7 @@ en:{
  scoreN:(q,n)=>`${q} / 5 (${n} ${n===1?"review":"reviews"})`, noReviews:"No reviews", noEval:"No ratings",
  notRegistered:(t,u)=>`No professor named “${t}” is listed at ${u}.`, addThis:t=>`Add “${t}”`,
  top:"Home", profNotFound:"Professor not found.", backSearch:"Back to search",
- basis:n=>`Overall quality · based on ${n} ${n===1?"review":"reviews"}`, deptUnset:"Department not set", deptListOf:d=>`Professors in ${d}`, sample:"Sample",
+ basis:n=>`Overall quality · based on ${n} ${n===1?"review":"reviews"}`, deptUnset:"Faculty not set", deptListOf:d=>`Professors in ${d}`, sample:"Sample",
  again:"Would take again", diff:"Difficulty", diff5:"Level of difficulty (1–5)", rateThis:"Rate this professor",
  readOnlyAcct:"This account can view only.", needLoginRate:"Sign in to write a rating. Visitors who are not signed in can read only.",
  dist:"Rating distribution", countN:n=>`${n} ${n===1?"review":"reviews"}`, tabRev:"Reviews", tabExam:"Past exams", filterCourse:"Filter by course", allCourses:"All courses",
@@ -103,7 +103,7 @@ en:{
  noPerm:"This account is not allowed to post.", quota:"Storage limit reached.", postFail:"Could not post. Please try again later.",
  addProf:"Add a professor", needLoginAdd:"Sign in to add a professor.",
  addLead:u=>`Add a professor who teaches at ${u}. Enter the name in Japanese, in romaji, or both. With both, the professor can be found in either language.`,
- nameJa:"Name in Japanese", nameEn:"Name in romaji", oneOf:"At least one", dept:"Department",
+ nameJa:"Name in Japanese", nameEn:"Name in romaji", oneOf:"At least one", dept:"Faculty",
  addBtn:"Add", eName:"Enter the name in Japanese or in romaji.", dupProf:"This professor is already listed:",
  adding:"Adding…", added:"Professor added", addFail:"Could not add. Please try again later.",
  deptMembers:(u,n)=>`${u} · ${n} ${n===1?"professor":"professors"}`, name:"Name", count:"Reviews", mobLine:(n,a,d)=>`${n} reviews · would take again ${a}% · difficulty ${d}`,
@@ -134,7 +134,7 @@ en:{
  terms:{"前期":"Spring","後期":"Fall","通年":"Full year","集中":"Intensive"}, kinds:{"期末試験":"Final exam","中間試験":"Midterm","小テスト":"Quiz","レポート課題":"Assignment","その他":"Other"},
  grades:{"秀":"S","優":"A","良":"B","可":"C","不可":"F"}
 }};
-Object.assign(T.ja,{cfDelTitle:"本当に削除しますか？",cfDelBody:"削除すると元に戻せません。",cfDelOk:"削除する",cfReview:"このレビューを削除します。",cfSchool:"この大学の評価を削除します。",cfExam:"この過去問・資料を削除します。共有した写真もすべて削除されます。",cfReply:"この返信を削除します。",cfHide:"この投稿を非表示にしますか？",cfHideBody:"サイトに表示されなくなります。管理ページから表示に戻せます。",cfHideOk:"非表示にする",cfReject:"この本人確認の申請を却下しますか？",cfRejectOk:"却下する",cfApprove:"この申請を承認しますか？",cfApproveBody:"承認すると、この方はこの先生としてレビューに返信できるようになります。",cfApproveOk:"承認する",eDept:"学部・学科を入力してください。"});
+Object.assign(T.ja,{cfDelTitle:"本当に削除しますか？",cfDelBody:"削除すると元に戻せません。",cfDelOk:"削除する",cfReview:"このレビューを削除します。",cfSchool:"この大学の評価を削除します。",cfExam:"この過去問・資料を削除します。共有した写真もすべて削除されます。",cfReply:"この返信を削除します。",cfHide:"この投稿を非表示にしますか？",cfHideBody:"サイトに表示されなくなります。管理ページから表示に戻せます。",cfHideOk:"非表示にする",cfReject:"この本人確認の申請を却下しますか？",cfRejectOk:"却下する",cfApprove:"この申請を承認しますか？",cfApproveBody:"承認すると、この方はこの先生としてレビューに返信できるようになります。",cfApproveOk:"承認する",eDept:"学部を入力してください。"});
 Object.assign(T.en,{cfDelTitle:"Delete this?",cfDelBody:"This can’t be undone.",cfDelOk:"Delete",cfReview:"This review will be deleted.",cfSchool:"This university rating will be deleted.",cfExam:"This past exam will be deleted, including all its photos.",cfReply:"This reply will be deleted.",cfHide:"Hide this post?",cfHideBody:"It will no longer appear on the site. You can unhide it from the admin page.",cfHideOk:"Hide",cfReject:"Reject this verification request?",cfRejectOk:"Reject",cfApprove:"Approve this request?",cfApproveBody:"Once approved, this person can reply to reviews as this professor.",cfApproveOk:"Approve",eDept:"Enter the department."});
 Object.assign(T.ja,{
  fGuide:"評価ガイドライン", fRemoval:"削除申請（先生・大学関係者の方へ）", fAdmin:"管理",
@@ -152,8 +152,8 @@ Object.assign(T.ja,{
   ["チェックと削除",["投稿は掲載前にAIが確認し、問題がある場合は書き直しをお願いします","掲載後も、通報を受けたものは運営が確認し、ガイドラインに反すると判断したものは非表示にします","通報や削除申請をした人の情報は、投稿者には伝わりません"]],
   ["先生・大学関係者の方へ",["ご自身に関するレビューや資料に問題がある場合は、削除申請フォームからご連絡ください","運営が内容を確認し、ガイドラインに反するものは削除します。正当な批判を含むレビューは、申請があっても掲載を続ける場合があります"]]
  ],
- removalTitle:"削除申請", removalLead:"ご自身に関するレビューや資料に、ガイドラインに反する内容がある場合にご利用ください。運営が確認したうえで、ご連絡先に結果をお知らせします。",
- rName:"お名前", rUni:"大学名", rRole:"ご関係", roles:{self:"本人（教員）",staff:"大学の職員",other:"その他"},
+ removalTitle:"削除申請", removalLead:"ガイドラインに反するレビュー・資料や、誤って登録された先生を見つけたときにご利用ください（教員ご本人、大学関係者、利用者のどなたでも送れます）。ご自分で書いたレビューやご自分で追加した先生は、マイページからすぐに削除できます。運営が確認したうえで、ご連絡先に結果をお知らせします。",
+ rName:"お名前", rUni:"大学名", rRole:"ご関係", roles:{self:"本人（教員）",staff:"大学の職員",other:"利用者・その他"},
  rScope:"削除を希望する対象", scopes:{page:"先生のページ全体",review:"特定のレビュー",exam:"共有された資料"},
  rTarget:"対象の先生・レビュー", rTargetHint:"先生の名前と、該当するレビューの授業名や投稿日などを書いてください", rReason:"申請の理由", rReasonRule:"必須・20〜1000字",
  rEmail:"ご連絡先のメールアドレス", rEmailHint:"大学のメールアドレスだと、ご本人の確認が早く進みます",
@@ -161,7 +161,7 @@ Object.assign(T.ja,{
  eRName:"お名前を入力してください。", eRUni:"大学名を入力してください。", eRRole:"ご関係を選んでください。", eRScope:"対象を選んでください。", eRTarget:"対象を入力してください。", eRReason:"申請の理由を20字以上で書いてください。", eREmail:"メールアドレスを正しく入力してください。", eRAgree:"確認の項目にチェックしてください。",
  needLoginRemoval:"このプロトタイプでは、申請の送信にログインが必要です。本番版では、ログインしなくても申請できるようにします。",
  removalSent:"削除申請を受け付けました。", removalDone:"削除申請を受け付けました。運営が内容を確認し、ご連絡先にお知らせします。",
- removalFromProf:"この先生ご本人、または大学関係者の方へ：削除申請はこちら",
+ removalFromProf:"不適切な内容を見つけた方・この先生ご本人の方へ：削除依頼はこちら",
  adminTitle:"管理", adminOnly:"このページはサイトの管理者だけが見られます。", adminReports:"通報", adminRemovals:"削除申請", adminHidden:"非表示にしたもの",
  hide:"非表示にする", unhide:"表示に戻す", nReports:n=>`通報 ${n}件`, noReports:"通報はありません。", noRemovals:"削除申請はありません。", noHidden:"非表示にしたものはありません。",
  hiddenDone:"非表示にしました", unhiddenDone:"表示に戻しました", targetGone:"（対象が見つかりません）", kindReview:"先生のレビュー", kindSchool:"大学の評価", kindExam:"過去問・資料"
@@ -182,8 +182,8 @@ Object.assign(T.en,{
   ["Checks and removal",["AI checks every post before it appears and asks you to rewrite problem wording","Reported posts are reviewed by the site team and hidden if they break these guidelines","People who report or request removal are never revealed to the author"]],
   ["For professors and university staff",["If a review or material about you is a problem, please use the removal request form","The site team reviews each request and removes content that breaks these guidelines. Reviews containing fair criticism may stay up even after a request"]]
  ],
- removalTitle:"Removal request", removalLead:"Use this form if a review or material about you breaks the guidelines. The site team will review it and reply to the address you give.",
- rName:"Your name", rUni:"University", rRole:"Your role", roles:{self:"The professor",staff:"University staff",other:"Other"},
+ removalTitle:"Removal request", removalLead:"Use this form if you find a review or material that breaks the guidelines, or a professor registered by mistake (professors, university staff and users can all send it). Your own reviews and professors you added can be deleted right away from My page. The site team will review it and reply to the address you give.",
+ rName:"Your name", rUni:"University", rRole:"Your role", roles:{self:"The professor",staff:"University staff",other:"User / other"},
  rScope:"What should be removed", scopes:{page:"The whole professor page",review:"Specific reviews",exam:"Shared material"},
  rTarget:"Professor and review", rTargetHint:"Give the professor's name and the course name or date of the review", rReason:"Reason for the request", rReasonRule:"Required · 20–1000 characters",
  rEmail:"Contact email", rEmailHint:"A university email address speeds up identity checks",
@@ -191,7 +191,7 @@ Object.assign(T.en,{
  eRName:"Enter your name.", eRUni:"Enter the university.", eRRole:"Choose your role.", eRScope:"Choose what should be removed.", eRTarget:"Describe the professor and review.", eRReason:"Write at least 20 characters for the reason.", eREmail:"Enter a valid email address.", eRAgree:"Check the confirmation box.",
  needLoginRemoval:"In this prototype, sending a request requires signing in. The production site will accept requests without an account.",
  removalSent:"Request received.", removalDone:"Your request has been received. The site team will review it and reply by email.",
- removalFromProf:"Are you this professor or university staff? Request removal here",
+ removalFromProf:"Found something inappropriate, or are you this professor? Request removal here",
  adminTitle:"Admin", adminOnly:"Only the site administrator can see this page.", adminReports:"Reports", adminRemovals:"Removal requests", adminHidden:"Hidden content",
  hide:"Hide", unhide:"Unhide", nReports:n=>`${n} ${n===1?"report":"reports"}`, noReports:"No reports.", noRemovals:"No removal requests.", noHidden:"Nothing hidden.",
  hiddenDone:"Hidden", unhiddenDone:"Unhidden", targetGone:"(not found)", kindReview:"Professor review", kindSchool:"University rating", kindExam:"Past exam"
@@ -210,7 +210,7 @@ ja:{
   ["英語で使えますか？",["画面右上の言語の切り替えで、日本語と英語を選べます。レビューはどちらの言語でも投稿できます。"]],
   ["教員です。返信や削除の依頼をしたいです。",["「教員の方へ」のページから本人確認を行うと、ご自身へのレビューに返信できます。削除のご依頼は「削除依頼」から受け付けています。"]]
  ]},
- terms:{title:"利用規約",lead:"この利用規約（以下「本規約」）は、【運営者名】（以下「運営者」）が提供するウェブサービス「Sensei 評価」（以下「本サービス」）の利用条件を定めるものです。本サービスを利用するすべての方は、本規約に同意したものとみなします。",secs:[
+ terms:{title:"利用規約",lead:"この利用規約（以下「本規約」）は、本サービスの運営者（以下「運営者」）が提供するウェブサービス「Sensei 評価」（以下「本サービス」）の利用条件を定めるものです。本サービスを利用するすべての方は、本規約に同意したものとみなします。",secs:[
   ["第1条（適用）",["本規約は、利用者と運営者との間の本サービスの利用に関わる一切の関係に適用されます。","評価ガイドライン、プライバシーポリシー、著作権ポリシーその他運営者が本サービス上で定めるルールは、本規約の一部を構成します。"]],
   ["第2条（定義）",["「利用者」とは、本サービスを閲覧または利用するすべての方をいいます。","「登録利用者」とは、本サービスにログインして利用する方をいいます。","「投稿」とは、登録利用者が本サービスに送信するレビュー、評価、コメント、写真その他の情報をいいます。","「教員利用者」とは、運営者が定める本人確認を完了した大学等の教員をいいます。"]],
   ["第3条（アカウント）",["登録利用者は、自己の責任においてアカウントを管理するものとし、第三者に利用させてはなりません。","1人の方が複数のアカウントを使って投稿することはできません。","未成年の方は、親権者等の法定代理人の同意を得たうえで本サービスを利用してください。","登録利用者は、いつでもアカウントを削除して退会できます。退会後も、投稿は匿名のまま掲載を続けることがあります。投稿の削除を希望する場合は、退会前にご自身で削除してください。"]],
@@ -228,9 +228,9 @@ ja:{
   ["第15条（反社会的勢力の排除）",["利用者は、暴力団、暴力団員その他の反社会的勢力に該当しないこと、また反社会的勢力と関係を持たないことを表明し、保証するものとします。","運営者は、利用者がこれに反すると判断した場合、事前に通知することなく、本サービスの利用を停止することができます。"]],
   ["第16条（準拠法・管轄）",["本規約は日本法に準拠して解釈されます。","本サービスに関して紛争が生じた場合、【所在地を管轄する地方裁判所】を第一審の専属的合意管轄裁判所とします。"]]
  ]},
- privacy:{title:"プライバシーポリシー",lead:"【運営者名】（以下「運営者」）は、「Sensei 評価」（以下「本サービス」）における個人情報を、個人情報の保護に関する法律（以下「個人情報保護法」）その他の法令に従い、以下のとおり取り扱います。",secs:[
-  ["1. 事業者の情報",["名称：【運営者名】","住所：【所在地】","代表者：【代表者氏名】","お問い合わせ：【メールアドレス】"]],
-  ["2. 取得する情報",["アカウント情報：ログインに使用するアカウントの識別子、表示名","投稿情報：レビュー、評価、コメント、共有された写真","教員の情報：氏名、ふりがな、英語表記、所属大学、学部・学科（各大学が公開している教員紹介ページ等の公開情報、または利用者による登録から取得します）","教員の本人確認情報：氏名、所属大学、職名、大学のメールアドレス","削除申請・お問い合わせの情報：氏名、所属、連絡先、申請内容","通報の情報：通報の対象と理由","利用状況の情報：IPアドレス、ブラウザの種類、閲覧したページ、Cookie等の識別子、表示言語などの設定","保存期間：アカウントの情報は、退会後、不正利用への対応に必要な期間（最長【1年】）を経て削除します。"]],
+ privacy:{title:"プライバシーポリシー",lead:"「Sensei 評価」の運営者（以下「運営者」）は、「Sensei 評価」（以下「本サービス」）における個人情報を、個人情報の保護に関する法律（以下「個人情報保護法」）その他の法令に従い、以下のとおり取り扱います。",secs:[
+  ["1. 事業者の情報",["運営者の氏名または名称、住所、代表者の氏名は、お問い合わせのページにある連絡先までご請求いただければ、遅滞なくお知らせします。"]],
+  ["2. 取得する情報",["アカウント情報：ログインに使用するアカウントの識別子、表示名","投稿情報：レビュー、評価、コメント、共有された写真","教員の情報：氏名、ふりがな、英語表記、所属大学、学部（各大学が公開している教員紹介ページ等の公開情報、または利用者による登録から取得します）","教員の本人確認情報：氏名、所属大学、職名、大学のメールアドレス","削除申請・お問い合わせの情報：氏名、所属、連絡先、申請内容","通報の情報：通報の対象と理由","利用状況の情報：IPアドレス、ブラウザの種類、閲覧したページ、Cookie等の識別子、表示言語などの設定","保存期間：アカウントの情報は、退会後、不正利用への対応に必要な期間（最長【1年】）を経て削除します。"]],
   ["3. 利用目的",["本サービスの提供、本人確認、ログイン状態の管理","教員ごとのページを作成し、学生による授業・教員の評価を掲載すること","投稿の確認、不正利用や本規約違反への対応","削除申請、通報、お問い合わせへの対応","本サービスの改善、利用状況の分析","広告の配信および効果の測定","法令に基づく対応"]],
   ["4. 投稿者の匿名性",["レビュー等の投稿は匿名で掲載し、投稿したアカウントの情報を他の利用者や教員に公開することはありません。","ただし、裁判所の命令や情報流通プラットフォーム対処法に基づく発信者情報開示請求など、法令に基づく場合は、必要な範囲で開示することがあります。"]],
   ["5. 第三者への提供",["運営者は、次の場合を除き、本人の同意なく個人データを第三者に提供しません。","・法令に基づく場合","・人の生命、身体または財産の保護のために必要があり、本人の同意を得ることが困難な場合","・その他、個人情報保護法で認められる場合"]],
@@ -282,7 +282,7 @@ en:{
   ["Can I use the site in English?",["Yes. Switch languages at the top right. Reviews can be written in English or Japanese."]],
   ["I am a professor.",["Verify your identity via “For professors” to reply to reviews about you. Removal requests are accepted through the “Removal requests” form."]]
  ]},
- terms:{title:"Terms of Use",lead:"These Terms of Use (“Terms”) set out the conditions for using “Sensei Score” (the “Service”) provided by [Operator name] (the “Operator”). By using the Service you agree to these Terms. This English text is a translation; the Japanese version prevails.",secs:[
+ terms:{title:"Terms of Use",lead:"These Terms of Use (“Terms”) set out the conditions for using “Sensei Score” (the “Service”) provided by its operator (the “Operator”). By using the Service you agree to these Terms. This English text is a translation; the Japanese version prevails.",secs:[
   ["Article 1 (Scope)",["These Terms apply to all matters concerning the use of the Service between users and the Operator.","The Rating Guidelines, Privacy Policy, Copyright Policy and other rules posted on the Service form part of these Terms."]],
   ["Article 2 (Definitions)",["“User” means anyone who views or uses the Service.","“Registered user” means a user who signs in to the Service.","“Post” means any review, rating, comment, photo or other information a registered user sends to the Service.","“Faculty user” means a university faculty member who has completed the identity verification set by the Operator."]],
   ["Article 3 (Accounts)",["Registered users manage their accounts at their own responsibility and must not let others use them.","One person may not post using multiple accounts.","Minors must obtain consent from a parent or legal guardian before using the Service.","Registered users may delete their account at any time. Posts may remain published anonymously after deletion; delete them yourself beforehand if you want them removed."]],
@@ -300,8 +300,8 @@ en:{
   ["Article 15 (Exclusion of antisocial forces)",["Users represent and warrant that they are not, and have no relationship with, organized crime groups, their members or other antisocial forces.","The Operator may suspend use of the Service without notice if it judges a user to be in breach of this article."]],
   ["Article 16 (Governing law and jurisdiction)",["These Terms are governed by the laws of Japan.","[The district court with jurisdiction over the Operator’s location] has exclusive jurisdiction as the court of first instance."]]
  ]},
- privacy:{title:"Privacy Policy",lead:"[Operator name] (the “Operator”) handles personal information in “Sensei Score” (the “Service”) as follows, in accordance with Japan’s Act on the Protection of Personal Information (APPI) and other laws. This English text is a translation; the Japanese version prevails.",secs:[
-  ["1. About the Operator",["Name: [Operator name]","Address: [Address]","Representative: [Representative’s name]","Contact: [Email address]"]],
+ privacy:{title:"Privacy Policy",lead:"The operator of “Sensei Score” (the “Operator”) handles personal information in “Sensei Score” (the “Service”) as follows, in accordance with Japan’s Act on the Protection of Personal Information (APPI) and other laws. This English text is a translation; the Japanese version prevails.",secs:[
+  ["1. About the Operator",["The Operator’s name, address and representative will be provided without delay on request to the address on the Contact page."]],
   ["2. Information we collect",["Account information: account identifier and display name used to sign in","Posts: reviews, ratings, comments and shared photos","Professors: name, kana, English name, university and department (obtained from public information such as faculty directories published by universities, or registered by users)","Faculty verification: name, university, job title and university email address","Removal requests and inquiries: name, affiliation, contact details and request content","Reports: the reported item and reason","Usage information: IP address, browser type, pages viewed, cookie identifiers and settings such as language","Retention: account information is deleted after the period needed to deal with misuse following account deletion (up to [1 year])."]],
   ["3. Purposes of use",["Providing the Service, verifying identity and managing sign-in","Creating a page for each professor and publishing students’ ratings of courses and professors","Checking posts and responding to misuse or violations of the Terms","Handling removal requests, reports and inquiries","Improving the Service and analyzing usage","Delivering advertisements and measuring their effectiveness","Complying with laws"]],
   ["4. Anonymity of posts",["Posts are shown anonymously. We never show information about the posting account to other users or professors.","However, we may disclose it to the extent necessary when required by law, such as a court order or a disclosure request under the Information Distribution Platform Act."]],
@@ -407,7 +407,7 @@ Object.assign(T.ja,{
  eUniName:"大学名を入力してください。", ePref:"都道府県を選んでください。", dupUni:"同じ大学がすでに登録されています：", uniAdded:"大学を追加しました", needLoginAddUni:"大学を追加するにはログインが必要です。",
  me:"マイページ", meLead:"あなたの投稿や申請をまとめて確認できます。ここに表示される内容は、他の人には見えません。",
  meAccount:"アカウント", meLoginBy:"ログイン方法", meLoginProto:"claude.ai のアカウント（プロトタイプ）", meLang:"表示言語",
- meReviews:"先生のレビュー", meSchools:"大学の評価", meExams:"共有した過去問・資料", meAdded:"追加した先生・大学", meRequests:"通報・申請",
+ meReviews:"先生のレビュー", meSchools:"大学の評価", meExams:"共有した過去問・資料", meAdded:"追加した先生・大学", meRequests:"通報・削除依頼",
  meNone:"まだありません。", meReported:n=>`通報 ${n}件`, meRemovals:n=>`削除依頼 ${n}件`, meClaim:"本人確認", view2:"表示",
  leave:"退会する", leaveTitle:"退会", leaveLead:"退会すると、このサイトのアカウントは使えなくなります。投稿は、残すか削除するかを選べます。",
  leaveDelete:"自分の投稿（レビュー、大学の評価、過去問・資料、返信）もすべて削除する", leaveKeep:"チェックしない場合、投稿は匿名のまま掲載を続けます。",
@@ -419,7 +419,7 @@ Object.assign(T.en,{
  eUniName:"Enter the university name.", ePref:"Choose a prefecture.", dupUni:"This university is already listed:", uniAdded:"University added", needLoginAddUni:"Sign in to add a university.",
  me:"My page", meLead:"Everything you have posted or requested, in one place. Only you can see this page.",
  meAccount:"Account", meLoginBy:"Signed in with", meLoginProto:"claude.ai account (prototype)", meLang:"Language",
- meReviews:"Professor reviews", meSchools:"University ratings", meExams:"Shared past exams", meAdded:"Professors and universities you added", meRequests:"Reports and requests",
+ meReviews:"Professor reviews", meSchools:"University ratings", meExams:"Shared past exams", meAdded:"Professors and universities you added", meRequests:"Reports and removal requests",
  meNone:"Nothing yet.", meReported:n=>`${n} ${n===1?"report":"reports"}`, meRemovals:n=>`${n} removal ${n===1?"request":"requests"}`, meClaim:"Verification", view2:"View",
  leave:"Delete account", leaveTitle:"Delete account", leaveLead:"After deleting your account you can no longer use it on this site. You can choose whether to keep or delete your posts.",
  leaveDelete:"Also delete all my posts (reviews, university ratings, past exams, replies)", leaveKeep:"If unchecked, your posts stay published anonymously.",
@@ -441,7 +441,8 @@ Object.assign(T.ja,{
  dupReview:"この授業には、すでにレビューを投稿しています。", aiDown:"AIによるチェックが使えないため、今は投稿できません。時間をおいてお試しください。",
  meLoginGoogle:"Googleアカウント", meLoginEmail:"メールアドレス",
  imgTooLarge:"写真が大きすぎます。別の写真をお試しください。",
- pimpTitle:"先生の一括追加", pimpLead:"大学ごとの先生の一覧（CSV）を読み込み、まとめて登録します。すでに登録されている先生（日本語名・英語名が同じ人）は追加しません。名簿は、各大学が公開している教員紹介ページなどをもとに作ってください。", pimpCols:"1行目に見出しが必要です：大学（大学名または学校コード）、氏名、ふりがな（任意）、英語表記（任意）、学部・学科。氏名と英語表記はどちらか一方があれば登録できます。", pimpTemplate:"見本のCSVをダウンロード", pimpParsed:n=>`${n}名を追加できます。`, pimpUnknown:n=>`大学が見つからない行：${n}種類（大学名を一覧と同じ正式名称にしてください）`, pimpDup:n=>`登録済みのため追加しない先生：${n}名`, pimpBad:n=>`名前または学部・学科がない行：${n}件`, pimpNoHeader:"見出しの行が見つかりません。「大学」「氏名」「学部・学科」の列があるか確認してください。", pimpSaving:(i,n)=>`登録しています…（${i} / ${n}）`, pimpDone:n=>`${n}名の先生を登録しました。`,
+ addedByMe:"あなたが追加した先生", delProf:"この先生を削除", cfProfDel:"この先生のページを削除しますか？", cfUniDel:"この大学を削除しますか？", delHasOthers:"ほかの人のレビューや返信があるため削除できません。必要な場合は削除依頼を送ってください。", delHasExams:"共有された資料があるため削除できません。資料を先に削除するか、削除依頼を送ってください。", delHasProfs:"先生が登録されている大学は削除できません。先に先生を削除するか、削除依頼を送ってください。", delNotOwner:"ご自分で追加したものだけ削除できます。", needMigration:"削除の準備ができていません（管理者の方へ：追加のSQLを実行してください）。", stOpen:"未対応", stDone:"対応済み", markDone:"対応済みにする", markOpen:"未対応に戻す",
+ pimpTitle:"先生の一括追加", pimpLead:"大学ごとの先生の一覧（CSV）を読み込み、まとめて登録します。すでに登録されている先生（日本語名・英語名が同じ人）は追加しません。名簿は、各大学が公開している教員紹介ページなどをもとに作ってください。", pimpCols:"1行目に見出しが必要です：大学（大学名または学校コード）、氏名、ふりがな（任意）、英語表記（任意）、学部。氏名と英語表記はどちらか一方があれば登録できます。", pimpTemplate:"見本のCSVをダウンロード", pimpParsed:n=>`${n}名を追加できます。`, pimpUnknown:n=>`大学が見つからない行：${n}種類（大学名を一覧と同じ正式名称にしてください）`, pimpDup:n=>`登録済みのため追加しない先生：${n}名`, pimpBad:n=>`名前または学部がない行：${n}件`, pimpNoHeader:"見出しの行が見つかりません。「大学」「氏名」「学部」の列があるか確認してください。", pimpSaving:(i,n)=>`登録しています…（${i} / ${n}）`, pimpDone:n=>`${n}名の先生を登録しました。`,
  importTitle:"大学一覧の取り込み", importLead:"文部科学省の「学校コード」の大学・短期大学・高等専門学校のCSVを選ぶと、大学（学校種 F1）を一覧に登録します。すでにある大学は名前と所在地だけ更新します。",
  importShort:"短期大学（F2）も含める", importRun:"取り込む", importParsed:n=>`${n}校を読み込みました。`, importDone:n=>`${n}校を登録しました。`, importNone:"大学が見つかりませんでした。ファイルを確認してください。", importing:(i,n)=>`登録しています…（${i} / ${n}）`,
  noUnisYet:"大学がまだ登録されていません。管理者は「管理」ページから大学一覧を取り込んでください。",
@@ -459,6 +460,7 @@ Object.assign(T.en,{
  dupReview:"You have already reviewed this course.", aiDown:"Posting is unavailable because the AI check is not working. Please try again later.",
  meLoginGoogle:"Google account", meLoginEmail:"Email address",
  imgTooLarge:"A photo is too large. Please try another.",
+ addedByMe:"You added this professor", delProf:"Delete this professor", cfProfDel:"Delete this professor’s page?", cfUniDel:"Delete this university?", delHasOthers:"This can’t be deleted because other people have posted reviews or replies. Please send a removal request if needed.", delHasExams:"This can’t be deleted because materials have been shared. Delete the materials first or send a removal request.", delHasProfs:"A university with professors can’t be deleted. Delete the professors first or send a removal request.", delNotOwner:"You can only delete what you added.", needMigration:"Deletion isn’t set up yet (admin: please run the additional SQL).", stOpen:"Open", stDone:"Done", markDone:"Mark as done", markOpen:"Reopen",
  pimpTitle:"Add teachers in bulk", pimpLead:"Read a CSV list of teachers for each university and register them all at once. Teachers already registered (same Japanese or English name) are skipped. Build the list from information each university publishes, such as its faculty directory.", pimpCols:"The first row must be a header: University (name or school code), Name, Kana (optional), English name (optional), Department. Either Name or English name is enough.", pimpTemplate:"Download a sample CSV", pimpParsed:n=>`${n} teachers can be added.`, pimpUnknown:n=>`Rows with an unknown university: ${n} names (use the official name as in the list)`, pimpDup:n=>`Already registered, skipped: ${n}`, pimpBad:n=>`Rows missing a name or department: ${n}`, pimpNoHeader:"No header row found. Check that the file has University, Name and Department columns.", pimpSaving:(i,n)=>`Saving… (${i} / ${n})`, pimpDone:n=>`Added ${n} teachers.`,
  importTitle:"Import universities", importLead:"Choose MEXT’s school code CSV for universities, junior colleges and technical colleges. Universities (type F1) are added; existing ones only get their name and prefecture updated.",
  importShort:"Include junior colleges (F2)", importRun:"Import", importParsed:n=>`Read ${n} schools.`, importDone:n=>`Added ${n} schools.`, importNone:"No universities found. Please check the file.", importing:(i,n)=>`Saving… (${i} / ${n})`,

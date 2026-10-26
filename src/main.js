@@ -47,13 +47,16 @@ function route() {
   const v = dot < 0 ? h : h.slice(0, dot), id = dot < 0 ? "" : h.slice(dot + 1);
   if (v === "find" || v === "dept") { const i = id.indexOf("~"); if (i > 0 && id.slice(i + 1).trim()) return { v, id: id.slice(0, i), q: id.slice(i + 1) }; return { v: "home" }; }
   if (["u", "p", "rate", "add", "school", "srate", "exam", "removal"].includes(v)) return { v: v === "u" ? "uni" : v === "p" ? "prof" : v, id };
-  if (["help", "terms", "privacy", "cookies", "copyright", "about", "contact"].includes(v)) return { v: "legal", id: v };
+  if (["help", "terms", "privacy", "cookies", "copyright", "contact"].includes(v)) return { v: "legal", id: v };
   if (["guidelines", "admin", "faculty", "adduni", "me"].includes(v)) return { v };
   if (v === "login" || v === "signup") return { v: "login", id: v };
   return { v: "home" };
 }
 function go(h) { if (location.hash === "#" + h) render(); else location.hash = h; }
 window.addEventListener("hashchange", () => {
+  const nv = route().v;
+  if (nv === "admin") invalidate("admin");
+  if (nv === "me") invalidate("me", "myclaims");
   S.animNext = true; S.form = null; if (!S.keepPending) S.pendingTeacher = ""; S.keepPending = false;
   render(); window.scrollTo(0, 0);
 });
@@ -326,6 +329,7 @@ function renderProf(app, pid) {
       <p class="pmeta">${p.dept ? `<a href="#dept.${esc(u.id)}~${encodeURIComponent(p.dept)}" title="${esc(t("deptListOf", dName(p.dept)))}">${esc(dName(p.dept))}</a>` : esc(t("deptUnset"))}　<a href="#school.${esc(u.id)}" title="${esc(t("schoolEvalOf", uName(u)))}">${esc(uName(u))}</a></p>
       ${s.n ? `<div class="figs"><div><b>${s.again != null ? s.again + "%" : "—"}</b><span>${esc(t("again"))}</span></div><div><b>${s.d.toFixed(1)}</b><span>${esc(t("diff5"))}</span></div></div>` : ""}
       <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#rate.${esc(pid)}">${esc(t("rateThis"))}</a>` : `<div class="notice">${esc(t("needLoginRate"))}${loginLink()}</div>`}</div>
+      ${p.mine ? `<div class="row" style="margin-top:14px"><span class="mark me">${esc(t("addedByMe"))}</span><button class="del" id="delprof">${esc(t("delProf"))}</button></div>` : ""}
       <a class="rmlink" href="#removal.${esc(pid)}">${esc(t("removalFromProf"))}</a>
     </div>
     <div style="display:flex;flex-direction:column;gap:28px">
@@ -342,6 +346,7 @@ function renderProf(app, pid) {
     <div id="tabbody"></div>
   </section>`;
   const cf = $("#cf"); if (cf) cf.onchange = () => { S.profCourse = cf.value; drawRevs(p, rs); };
+  const dp = $("#delprof"); if (dp) dp.onclick = () => deleteOwn("prof", p.id, p.uni);
   $("#t-rev").onclick = () => { S.profTab = "rev"; renderProf(app, pid); };
   $("#t-exam").onclick = () => { S.profTab = "exam"; renderProf(app, pid); };
   if (S.profTab === "rev") { $("#tabbody").innerHTML = '<div id="revs"></div>'; drawRevs(p, rs); }
@@ -983,7 +988,7 @@ function renderRemoval(app, pid) {
     const { error } = await sb.from("removal_requests").insert({ user_id: S.MYID || null, name: f.name.trim().slice(0, 60), university: f.uni.trim().slice(0, 80), role: f.role, scope: f.scope, target: f.target.trim().slice(0, 200), reason: f.reason.trim().slice(0, 1000), email: f.email.trim().slice(0, 120), professor_id: pid && /^[0-9a-f-]{36}$/.test(pid) ? pid : null });
     S.busy = false;
     if (error) { $("#r-sub").disabled = false; return setMsg(t("reportFail"), 1); }
-    f.done = true; render(); window.scrollTo(0, 0); toast(t("removalSent"));
+    f.done = true; invalidate("me", "admin"); render(); window.scrollTo(0, 0); toast(t("removalSent"));
   };
 }
 
@@ -1120,6 +1125,18 @@ function renderFaculty(app) {
   };
 }
 
+/* 自分が追加した先生・大学の削除（ほかの人のレビューなどがある場合は削除依頼で対応） */
+async function deleteOwn(kind, id, uni) {
+  if (!(await askDelete(kind === "prof" ? t("cfProfDel") : t("cfUniDel")))) return;
+  const { data, error } = await sb.rpc(kind === "prof" ? "delete_own_professor" : "delete_own_university", kind === "prof" ? { pid: id } : { uid: id });
+  if (error) { toast(error.code === "PGRST202" || /function/i.test(error.message || "") ? t("needMigration") : t("delFail")); return; }
+  const msg = { ok: null, has_others: t("delHasOthers"), has_exams: t("delHasExams"), has_profs: t("delHasProfs"), not_owner: t("delNotOwner"), not_found: t("delFail") }[data];
+  if (msg) { toast(msg); return; }
+  invalidate("me", "profs", "prof", "unis", "revs");
+  toast(t("deleted"));
+  if (kind === "prof" && route().v === "prof") go(uni ? "u." + uni : "home"); else render();
+}
+
 /* ===================================================================
    マイページ・退会
    =================================================================== */
@@ -1128,13 +1145,13 @@ async function loadMe() {
   const [rv, sc, ex, pf, un, rp, rr] = await Promise.all([
     q("reviews", "id,professor_id,course,quality,status,created_at"), q("school_ratings", "id,university_id,status,created_at,rep,loc,car,fac,net,food,club,life,safe,happy"),
     q("exams", "id,professor_id,course,year,status,created_at"), q("professors", "id,name,name_en,created_at"), q("universities", "id,name,name_en,created_at"),
-    q("reports", "id,created_at"), q("removal_requests", "id,created_at"),
+    q("reports", "id,created_at"), q("removal_requests", "id,name,target,scope,status,created_at"),
   ]);
   for (const x of [rv, sc, ex, pf, un, rp, rr]) if (x.error) throw x.error;
   const pids = [...new Set([...rv.data, ...ex.data].map(r => r.professor_id))];
   const names = {};
   if (pids.length) { const { data } = await sb.from("professors").select("id,name,name_en").in("id", pids); (data || []).forEach(p => (names[p.id] = { name: p.name || "", en: p.name_en || "" })); }
-  return { rv: rv.data, sc: sc.data, ex: ex.data, pf: pf.data, un: un.data, nRep: rp.data.length, nRem: rr.data.length, names };
+  return { rv: rv.data, sc: sc.data, ex: ex.data, pf: pf.data, un: un.data, nRep: rp.data.length, nRem: rr.data.length, rems: rr.data, names };
 }
 function renderMe(app) {
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#home", t("top")], [null, t("me")])}<div class="notice"><b>${esc(t("needLoginRate"))}</b>${loginLink()}</div>`; return; }
@@ -1159,8 +1176,8 @@ function renderMe(app) {
   ${sec(t("meReviews"), d.rv.length, d.rv.length ? `<ul class="melist">${d.rv.map(r => `<li><a href="#p.${esc(r.professor_id)}">${esc(pn(r.professor_id))}</a><span class="sub small">${esc(r.course)}・${Number(r.quality).toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="review|${esc(r.id)}">${esc(t("del"))}</button></li>`).join("")}</ul>` : none)}
   ${sec(t("meSchools"), d.sc.length, d.sc.length ? `<ul class="melist">${d.sc.map(r => { const u = uniById(r.university_id); const avg = SCATS.reduce((a, [k]) => a + r[k], 0) / SCATS.length; return `<li><a href="#school.${esc(r.university_id)}">${esc(u ? uName(u) : "—")}</a><span class="sub small">${avg.toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="school|${esc(r.id)}">${esc(t("del"))}</button></li>`; }).join("")}</ul>` : none)}
   ${sec(t("meExams"), d.ex.length, d.ex.length ? `<ul class="melist">${d.ex.map(x => `<li><a href="#p.${esc(x.professor_id)}">${esc(pn(x.professor_id))}</a><span class="sub small">${esc(x.course)}・${x.year}${hiddenMark(x)}</span><button class="del" data-mdel="exam|${esc(x.id)}">${esc(t("del"))}</button></li>`).join("")}</ul>` : none)}
-  ${sec(t("meAdded"), d.pf.length + d.un.length, d.pf.length + d.un.length ? `<ul class="melist">${d.un.map(u => `<li><a href="#u.${esc(u.id)}">${esc(S.LANG === "en" ? u.name_en || u.name : u.name)}</a><span class="sub small">${esc(t("uni"))}</span></li>`).join("")}${d.pf.map(p => `<li><a href="#p.${esc(p.id)}">${esc(S.LANG === "en" ? p.name_en || p.name : p.name || p.name_en)}</a><span class="sub small">${esc(t("prof"))}</span></li>`).join("")}</ul>` : none)}
-  ${sec(t("meRequests"), d.nRep + d.nRem, `<p class="small">${esc(t("meReported", d.nRep))}　${esc(t("meRemovals", d.nRem))}</p>`)}
+  ${sec(t("meAdded"), d.pf.length + d.un.length, d.pf.length + d.un.length ? `<ul class="melist">${d.un.map(u => `<li><a href="#u.${esc(u.id)}">${esc(S.LANG === "en" ? u.name_en || u.name : u.name)}</a><span class="sub small">${esc(t("uni"))}</span><button class="del" data-odel="uni|${esc(u.id)}">${esc(t("del"))}</button></li>`).join("")}${d.pf.map(p => `<li><a href="#p.${esc(p.id)}">${esc(S.LANG === "en" ? p.name_en || p.name : p.name || p.name_en)}</a><span class="sub small">${esc(t("prof"))}</span><button class="del" data-odel="prof|${esc(p.id)}">${esc(t("del"))}</button></li>`).join("")}</ul>` : none)}
+  ${sec(t("meRequests"), d.nRep + d.nRem, `<p class="small">${esc(t("meReported", d.nRep))}　${esc(t("meRemovals", d.nRem))}</p>${d.rems.length ? `<ul class="melist">${d.rems.map(r => `<li><span>${esc(str(r.target, 60))}</span><span class="sub small">${esc((t("scopes") || {})[r.scope] || "")}・${fmtDate(r.created_at)}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span></li>`).join("")}</ul>` : ""}`)}
   <section class="mesec"><div class="row"><button class="btn" id="me-out">${esc(t("signOut"))}</button></div></section>
   <section class="mesec danger"><h2>${esc(t("leaveTitle"))}</h2><p class="small">${esc(t("leaveLead"))}</p><div><button class="btn" id="me-leave">${esc(t("leave"))}</button></div></section>`;
   $("#me-name").textContent = (S.ME && S.ME.name) || t("signedIn");
@@ -1174,6 +1191,7 @@ function renderMe(app) {
     if (!ok) return toast(t("delFail"));
     invalidate("me", "revs", "profs", "school", "exams"); toast(t("deleted")); render();
   }));
+  app.querySelectorAll("[data-odel]").forEach(b => (b.onclick = () => { const [k, id] = b.dataset.odel.split("|"); deleteOwn(k, id); }));
   $("#me-out").onclick = async () => { await sb.auth.signOut(); toast(t("signedOut")); go("home"); };
   $("#me-leave").onclick = openLeave;
 }
@@ -1198,7 +1216,7 @@ function openLeave() {
 async function loadAdmin() {
   const [rep, rem, cl, hr, hs, he] = await Promise.all([
     sb.from("reports").select("*").order("created_at", { ascending: false }).limit(500),
-    sb.from("removal_requests").select("*").order("created_at", { ascending: false }).limit(200),
+    sb.from("removal_requests").select("*").order("status", { ascending: false }).order("created_at", { ascending: false }).limit(300),
     sb.from("faculty_claims").select("*").order("created_at", { ascending: false }).limit(200),
     sb.from("reviews").select("id,professor_id,course,body").eq("status", "hidden").limit(200),
     sb.from("school_ratings").select("id,university_id,body").eq("status", "hidden").limit(200),
@@ -1255,10 +1273,11 @@ function renderAdmin(app) {
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminRemovals"))} ${d.removals.length}</button></div>
     ${d.removals.length ? d.removals.map(r => `<article class="adm">
-      <div class="l1"><b>${esc(str(r.name, 60))}</b><span>${esc(str(r.university, 80))}</span><span class="mark">${esc(RO[r.role] || "")}</span><span class="mark">${esc(SC[r.scope] || "")}</span><span class="sub small">${fmtDate(r.created_at)}</span></div>
+      <div class="l1"><b>${esc(str(r.name, 60))}</b><span>${esc(str(r.university, 80))}</span><span class="mark">${esc(RO[r.role] || "")}</span><span class="mark">${esc(SC[r.scope] || "")}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span><span class="sub small">${fmtDate(r.created_at)}</span></div>
       <div class="small"><b>${esc(t("rTarget"))}：</b>${esc(str(r.target, 200))}${r.professor_id ? ` <a href="#p.${esc(r.professor_id)}">→</a>` : ""}</div>
       <p class="quote">${esc(str(r.reason, 1000))}</p>
       <div class="small"><b>${esc(t("rEmail"))}：</b><span class="sel">${esc(str(r.email, 120))}</span></div>
+      <div class="row"><button class="btn sm ${r.status === "done" ? "" : "solid"}" data-rst="${esc(r.id)}|${r.status === "done" ? "open" : "done"}">${esc(r.status === "done" ? t("markOpen") : t("markDone"))}</button></div>
     </article>`).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noRemovals"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminHidden"))} ${d.hidden.length}</button></div>
@@ -1291,6 +1310,12 @@ function renderAdmin(app) {
     const r2 = await sb.from("faculty_claims").update({ status: dcs === "ok" ? "approved" : "rejected" }).eq("id", id);
     if (r2.error) return toast(t("reportFail"));
     invalidate("admin", "profs", "prof"); toast(dcs === "ok" ? t("approved") : t("rejectedT")); render();
+  }));
+  app.querySelectorAll("[data-rst]").forEach(b => (b.onclick = async () => {
+    const [id, st] = b.dataset.rst.split("|");
+    const { error } = await sb.from("removal_requests").update({ status: st }).eq("id", id);
+    if (error) return toast(t("reportFail"));
+    invalidate("admin"); render();
   }));
   setupImport(); setupProfImport();
 }
@@ -1328,7 +1353,7 @@ function setupProfImport() {
   const fi = $("#pimp-file"), run = $("#pimp-run"), msg = $("#pimp-msg"), det = $("#pimp-detail");
   let plan = [];
   $("#pimp-tpl").onclick = () => {
-    const csv = "\uFEFF大学,氏名,ふりがな,英語表記,学部・学科\n東都大学,山田 太郎,やまだ たろう,Taro Yamada,経済学部\n";
+    const csv = "\uFEFF大学,氏名,ふりがな,英語表記,学部\n東都大学,山田 太郎,やまだ たろう,Taro Yamada,経済学部\n";
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "teachers-template.csv"; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
@@ -1360,6 +1385,8 @@ function setupProfImport() {
     invalidate("profs", "prof"); plan = [];
   };
 }
+// 「経済学部 経済学科」のような書き方から学部だけを取り出す
+function facultyOnly(d) { const m = d.match(/^(.*?学部)/); return m ? m[1].trim() : d; }
 async function planProfImport(rows) {
   const clean = v => String(v || "").trim();
   let hi = -1;
@@ -1383,7 +1410,7 @@ async function planProfImport(rows) {
     const name = ni >= 0 ? clean(r[ni]).replace(/\s+/g, " ").slice(0, 40) : "";
     const en = ei >= 0 ? clean(r[ei]).replace(/\s+/g, " ").slice(0, 60) : "";
     const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
-    const dept = clean(r[di]).slice(0, 60);
+    const dept = facultyOnly(clean(r[di])).slice(0, 60);
     if (([...name].length < 2 && [...en].length < 2) || !dept) { bad.push(name || en || uv); continue; }
     if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }
     const names = [name, en].filter(Boolean);

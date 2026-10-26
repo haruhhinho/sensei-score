@@ -199,7 +199,7 @@ Object.assign(T.en,{
 const ENACTED={ja:"2026年10月20日 制定",en:"Established October 20, 2026"};
 const LEGAL={
 ja:{
- help:{title:"ヘルプ",lead:"よくある質問をまとめています。解決しない場合は、運営者情報のページにあるお問い合わせ先までご連絡ください。",secs:[
+ help:{title:"ヘルプ",lead:"よくある質問をまとめています。解決しない場合は、お問い合わせのページにある連絡先までご連絡ください。",secs:[
   ["レビューは匿名で掲載されますか？",["はい。投稿したアカウントの名前やメールアドレスは、他の利用者や先生には表示されません。ただし、法令に基づいて開示を求められた場合は、この限りではありません（プライバシーポリシーをご覧ください）。"]],
   ["誰がレビューを書けますか？",["ログインした方が書けます。ログインしていない方は、閲覧のみできます。実際に受講した授業について、1つの授業につき1件までお書きください。"]],
   ["探している先生が見つかりません。",["名前の一部、ひらがな、ローマ字でも検索できます。それでも見つからない場合は、お問い合わせ先から掲載をご依頼ください。運営が確認したうえで追加します。"]],
@@ -271,7 +271,7 @@ ja:{
  ]}
 },
 en:{
- help:{title:"Help",lead:"Answers to common questions. If you still need help, use the contact address on the About & Contact page. The Japanese versions of our policies prevail if there is any difference.",secs:[
+ help:{title:"Help",lead:"Answers to common questions. If you still need help, use the address on the Contact page. The Japanese versions of our policies prevail if there is any difference.",secs:[
   ["Are reviews anonymous?",["Yes. The name or email of the account that posted a review is never shown to other users or professors, except when disclosure is required by law (see the Privacy Policy)."]],
   ["Who can write reviews?",["Anyone who is signed in. Visitors who are not signed in can read only. Please write about courses you actually took, one review per course."]],
   ["I can’t find a professor.",["Try part of the name, hiragana or romaji. If they are still missing, ask us to add them via the contact address. The site team checks every request before adding a professor."]],

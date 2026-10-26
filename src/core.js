@@ -98,8 +98,8 @@ export const SCATS = [["rep", "評判", "Reputation"], ["loc", "立地", "Locati
 export const rowToSchool = r => ({ id: r.id, uni: r.university_id, s: Object.fromEntries(SCATS.map(([k]) => [k, r[k]])), text: r.body || "", at: r.created_at, mine: !!r.is_mine });
 
 export const L = {
-  unis: () => all(() => sb.from("universities").select("id,name,name_en,kana,pref").eq("status", "active").order("name")).then(rs => rs.map(rowToUni)),
-  profs: uid => all(() => sb.from("professor_stats").select("*").eq("university_id", uid).order("name")).then(rs => rs.map(rowToProf)),
+  unis: () => all(() => sb.from("universities").select("id,name,name_en,kana,pref").eq("status", "active").order("name").order("id")).then(rs => rs.map(rowToUni)),
+  profs: uid => all(() => sb.from("professor_stats").select("*").eq("university_id", uid).order("name").order("id")).then(rs => rs.map(rowToProf)),
   prof: pid => sb.from("professor_stats").select("*").eq("id", pid).maybeSingle().then(({ data, error }) => { if (error) throw error; return data ? rowToProf(data) : null; }),
   reviews: pid => all(() => sb.from("reviews_public").select("*").eq("professor_id", pid).order("created_at", { ascending: false })).then(rs => rs.map(rowToRev)),
   replies: pid => sb.from("replies_public").select("*").eq("professor_id", pid).then(({ data, error }) => { if (error) throw error; return Object.fromEntries(data.map(r => [r.review_id, { text: r.body, at: r.created_at, mine: r.is_mine }])); }),

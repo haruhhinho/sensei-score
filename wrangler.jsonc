@@ -12,5 +12,7 @@
   },
   "observability": { "enabled": true },
   // 管理画面で入れた変数を、公開のたびに消さないようにする
-  "keep_vars": true
+  "keep_vars": true,
+  // 試し版（プレビュー）のURLは作らない
+  "preview_urls": false
 }

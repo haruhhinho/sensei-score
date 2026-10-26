@@ -365,3 +365,20 @@ begin
 end $$;
 revoke all on function public.delete_own_university(text) from public, anon;
 grant execute on function public.delete_own_university(text) to authenticated;
+
+-- =====================================================================
+--  大学ごとの学部一覧
+-- =====================================================================
+create table if not exists public.faculties (
+  university_id text not null references public.universities(id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 40),
+  sort int not null default 0,
+  primary key (university_id, name)
+);
+alter table public.faculties enable row level security;
+drop policy if exists fac_read on public.faculties;
+drop policy if exists fac_admin on public.faculties;
+create policy fac_read on public.faculties for select using (true);
+create policy fac_admin on public.faculties for all using (public.is_admin()) with check (public.is_admin());
+grant select on public.faculties to anon, authenticated;
+

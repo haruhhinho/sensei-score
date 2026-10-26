@@ -108,6 +108,7 @@ export const L = {
   school: uid => all(() => sb.from("school_ratings_public").select("*").eq("university_id", uid).order("created_at", { ascending: false })).then(rs => rs.map(rowToSchool)),
   myVerified: () => sb.from("faculty_verified").select("professor_id").eq("user_id", S.MYID).then(({ data, error }) => { if (error) throw error; return data.map(r => r.professor_id); }),
   myReports: () => sb.from("reports").select("kind,target_id").eq("user_id", S.MYID).then(({ data, error }) => { if (error) throw error; return new Set(data.map(r => r.kind + "|" + r.target_id)); }),
+  faculties: uid => sb.from("faculties").select("name,sort").eq("university_id", uid).order("sort").order("name").then(({ data, error }) => { if (error) return []; return data.map(r => r.name); }),
   myClaims: () => sb.from("faculty_claims").select("*").eq("user_id", S.MYID).order("created_at", { ascending: false }).then(({ data, error }) => { if (error) throw error; return data; }),
 };
 

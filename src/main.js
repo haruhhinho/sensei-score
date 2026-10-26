@@ -329,7 +329,7 @@ function renderProf(app, pid) {
       <p class="pmeta">${p.dept ? `<a href="#dept.${esc(u.id)}~${encodeURIComponent(p.dept)}" title="${esc(t("deptListOf", dName(p.dept)))}">${esc(dName(p.dept))}</a>` : esc(t("deptUnset"))}　<a href="#school.${esc(u.id)}" title="${esc(t("schoolEvalOf", uName(u)))}">${esc(uName(u))}</a></p>
       ${s.n ? `<div class="figs"><div><b>${s.again != null ? s.again + "%" : "—"}</b><span>${esc(t("again"))}</span></div><div><b>${s.d.toFixed(1)}</b><span>${esc(t("diff5"))}</span></div></div>` : ""}
       <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#rate.${esc(pid)}">${esc(t("rateThis"))}</a>` : `<div class="notice">${esc(t("needLoginRate"))}${loginLink()}</div>`}</div>
-      ${p.mine ? `<div class="row" style="margin-top:14px"><span class="mark me">${esc(t("addedByMe"))}</span><button class="del" id="delprof">${esc(t("delProf"))}</button></div>` : ""}
+      ${S.ISADMIN ? `<div class="row" style="margin-top:14px">${adminHide("professors", p.id, t("adminHidePage"))}</div>` : ""}
       <a class="rmlink" href="#removal.${esc(pid)}">${esc(t("removalFromProf"))}</a>
     </div>
     <div style="display:flex;flex-direction:column;gap:28px">
@@ -346,7 +346,6 @@ function renderProf(app, pid) {
     <div id="tabbody"></div>
   </section>`;
   const cf = $("#cf"); if (cf) cf.onchange = () => { S.profCourse = cf.value; drawRevs(p, rs); };
-  const dp = $("#delprof"); if (dp) dp.onclick = () => deleteOwn("prof", p.id, p.uni);
   $("#t-rev").onclick = () => { S.profTab = "rev"; renderProf(app, pid); };
   $("#t-exam").onclick = () => { S.profTab = "exam"; renderProf(app, pid); };
   if (S.profTab === "rev") { $("#tabbody").innerHTML = '<div id="revs"></div>'; drawRevs(p, rs); }
@@ -370,7 +369,7 @@ function drawRevs(p, rs) {
         <div class="l1"><span class="course">${esc(cName(r.course))}</span><span class="date">${fmtDate(r.at)}</span></div>
         <div class="at">${r.again != null ? `<span>${esc(t("again"))}<b>${esc(r.again ? t("yes") : t("no"))}</b></span>` : ""}${r.att != null ? `<span>${esc(t("att"))}<b>${esc(r.att ? t("req") : t("opt"))}</b></span>` : ""}${r.grade ? `<span>${esc(t("grade"))}<b>${esc(G[r.grade] || r.grade)}</b></span>` : ""}</div>
         ${trP(r.id, r.text)}${replyHTML(r, replies[r.id], canReply)}
-        <div class="ft"><span>${esc(t("anon"))}</span>${trB(r.id, r.text)}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-del="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("review", r.id)}</div>
+        <div class="ft"><span>${esc(t("anon"))}</span>${trB(r.id, r.text)}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-del="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("review", r.id)}${S.ISADMIN ? adminHide("reviews", r.id) : ""}</div>
       </div>
     </article>`).join("") : `<div class="notice" style="margin-top:16px">${esc(rs.length ? t("noRevCourse") : t("noRev"))}</div>`;
   el.querySelectorAll("[data-del]").forEach(b => (b.onclick = async () => {
@@ -596,7 +595,11 @@ function renderAdd(app, uid) {
   if (!u) { app.innerHTML = notFound(); return; }
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#u." + uid, "← " + uName(u)])}<div class="notice"><b>${esc(t("needLoginAdd"))}</b>${loginLink()}</div>`; return; }
   const pre = S.addPrefill, preJa = hasJa(pre) ? pre : "", preEn = hasJa(pre) ? "" : pre;
+  const facs = need("facs:" + uid, () => L.faculties(uid));
+  if (facs === undefined) { app.innerHTML = LOADING(); return; }
   if (!S.form || S.form.kind !== "add") S.form = { kind: "add" };
+  const list = Array.isArray(facs) ? facs : [];
+  const inList = list.includes(S.addDept);
   app.innerHTML = `${crumb(["#home", t("top")], ["#u." + uid, uName(u)], [null, t("addProf")])}
   <section class="title"><h1>${esc(t("addProf"))}</h1><p>${esc(t("addLead", uName(u)))}</p></section>
   <form id="af" novalidate style="display:flex;flex-direction:column;gap:20px">
@@ -604,17 +607,23 @@ function renderAdd(app, uid) {
       <div class="q"><label class="lb" for="a-name">${esc(t("nameJa"))}<small>${esc(t("oneOf"))}</small></label><input id="a-name" type="text" maxlength="40" value="${esc(preJa)}"></div>
       <div class="q"><label class="lb" for="a-kana">${esc(t("uniKana"))}<small>${esc(t("optional"))}</small></label><input id="a-kana" type="text" maxlength="40"></div>
       <div class="q"><label class="lb" for="a-en">${esc(t("nameEn"))}<small>${esc(t("oneOf"))}</small></label><input id="a-en" type="text" maxlength="60" value="${esc(preEn)}"></div>
-      <div class="q"><label class="lb" for="a-dept">${esc(t("dept"))}<small>${esc(t("required"))}</small></label><input id="a-dept" type="text" maxlength="60" value="${esc(S.addDept)}"></div>
+      <div class="q"><label class="lb" for="${list.length ? "a-fac" : "a-dept"}">${esc(t("dept"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+        ${list.length ? `<select id="a-fac" class="selbox"><option value="">${esc(t("chooseFac"))}</option>${list.map(f => `<option ${f === S.addDept ? "selected" : ""}>${esc(f)}</option>`).join("")}<option value="__other" ${S.addDept && !inList ? "selected" : ""}>${esc(t("facOther"))}</option></select>` : ""}
+        <input id="a-dept" type="text" maxlength="40" value="${esc(inList ? "" : S.addDept)}" placeholder="${esc(t("facPh"))}" ${list.length && !(S.addDept && !inList) ? "hidden" : ""}>
+        <span class="small sub">${esc(list.length ? t("facHintList") : t("facHintFree"))}</span></div></div>
     </div>
     <div class="row"><button class="btn solid" type="submit" id="a-sub">${esc(t("addBtn"))}</button><a class="btn" href="#u.${esc(uid)}">${esc(t("cancel"))}</a><span class="msg" id="a-msg"></span></div>
   </form>`;
   app.querySelectorAll("#af input").forEach(i => i.addEventListener("input", () => (S.form.started = true)));
+  const fsel = $("#a-fac"); if (fsel) fsel.onchange = () => { S.form.started = true; $("#a-dept").hidden = fsel.value !== "__other"; if (fsel.value === "__other") $("#a-dept").focus(); };
   $("#af").onsubmit = async e => {
     e.preventDefault(); if (S.busy) return;
-    const name = $("#a-name").value.trim(), en = $("#a-en").value.trim(), kana = $("#a-kana").value.trim(), dept = $("#a-dept").value.trim(), msg = $("#a-msg");
+    const name = $("#a-name").value.trim(), en = $("#a-en").value.trim(), kana = $("#a-kana").value.trim(), msg = $("#a-msg");
+    const dept = fsel && fsel.value && fsel.value !== "__other" ? fsel.value : facultyOnly($("#a-dept").value.trim());
     msg.classList.add("ng");
     if ([...name].length < 2 && [...en].length < 2) { msg.textContent = t("eName"); return; }
     if (!dept) { msg.textContent = t("eDept"); return; }
+    if (!isFaculty(dept)) { msg.textContent = t("eDeptFormat"); return; }
     let list = peek("profs:" + uid); if (!Array.isArray(list)) { try { list = await L.profs(uid); } catch { list = []; } }
     const dup = list.find(p => sameProf(p, [name, en].filter(Boolean)));
     if (dup) { msg.innerHTML = `${esc(t("dupProf"))} <a href="#p.${esc(dup.id)}">${esc(pName(dup))}</a>`; return; }
@@ -692,7 +701,7 @@ function renderSchool(app, uid) {
         <div class="bd">
           <div class="cats">${SCATS.map(c => `<span><small>${esc(scatL(c))}</small><b>${r.s[c[0]]}</b></span>`).join("")}</div>
           ${r.text ? trP(r.id, r.text, "small sub") : ""}
-          <div class="small sub" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span>${fmtDate(r.at)}</span>${r.text ? trB(r.id, r.text) : ""}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-sdel="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("school", r.id)}</div>
+          <div class="small sub" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span>${fmtDate(r.at)}</span>${r.text ? trB(r.id, r.text) : ""}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-sdel="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("school", r.id)}${S.ISADMIN ? adminHide("school_ratings", r.id) : ""}</div>
         </div>
       </article>`).join("")}</div>
   </section>`;
@@ -755,7 +764,7 @@ function drawExams(p, list) {
       <div><div class="t">${esc(examTitle(x))}</div><div class="m"><span>${esc(cName(x.course))}</span><span>${esc(t("pages", x.pages))}</span><span>${esc(t("sharedOn", fmtDate(x.created_at)))}</span></div></div>
       <button class="btn sm" data-open="${i}">${esc(t("view"))}</button>
       ${x.memo ? trP(x.id, x.memo) : ""}
-      <div class="ft"><span>${esc(t("anon"))}</span>${x.memo ? trB(x.id, x.memo) : ""}${x.is_mine ? `<span class="mark me">${esc(t("myShare"))}</span><button class="del" data-edel="${i}">${esc(t("del"))}</button>` : reportBtn("exam", x.id)}</div>
+      <div class="ft"><span>${esc(t("anon"))}</span>${x.memo ? trB(x.id, x.memo) : ""}${x.is_mine ? `<span class="mark me">${esc(t("myShare"))}</span><button class="del" data-edel="${i}">${esc(t("del"))}</button>` : reportBtn("exam", x.id)}${S.ISADMIN ? adminHide("exams", x.id) : ""}</div>
     </article>`).join("") : `<div class="notice" style="margin-top:16px">${esc(t("noExam"))}</div>`}`;
   el.querySelectorAll("[data-open]").forEach(b => (b.onclick = () => openExam(list[+b.dataset.open])));
   el.querySelectorAll("[data-edel]").forEach(b => (b.onclick = async () => {
@@ -1125,6 +1134,36 @@ function renderFaculty(app) {
   };
 }
 
+/* 管理者用：投稿や先生のページを非表示にする（いつでも「非表示中」から戻せる） */
+function adminHide(table, id, label, unhide) {
+  return `<button class="btn sm${unhide ? "" : " danger"}" data-ahide="${table}|${esc(id)}|${unhide ? 0 : 1}">${esc(label || (unhide ? t("unhide") : t("adminHide")))}</button>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-ahide]"); if (!b || !S.ISADMIN) return;
+  const [table, id, on] = b.dataset.ahide.split("|");
+  if (on === "1" && !(await askConfirm({ title: t("cfHide"), body: t("cfHideBody"), ok: t("cfHideOk") }))) return;
+  const shown = table === "professors" || table === "universities" ? "active" : "published";
+  const { error } = await sb.from(table).update({ status: on === "1" ? "hidden" : shown }).eq("id", id);
+  if (error) return toast(t("reportFail"));
+  invalidate("admin", "revs", "school", "exams", "profs", "prof", "unis");
+  toast(on === "1" ? t("hiddenDone") : t("unhiddenDone"));
+  if (on === "1" && table === "professors" && route().v === "prof") go("home"); else render();
+});
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-rlist]"); if (!b || !S.ISADMIN) return;
+  const pid = b.dataset.rlist, box = document.querySelector(`[data-rposts="${CSS.escape(pid)}"]`); if (!box) return;
+  box.textContent = t("loading");
+  const [rv, ex] = await Promise.all([
+    sb.from("reviews").select("id,course,body,status,created_at").eq("professor_id", pid).order("created_at", { ascending: false }),
+    sb.from("exams").select("id,course,year,memo,status").eq("professor_id", pid),
+  ]);
+  if (rv.error || ex.error) { box.textContent = t("loadFail"); return; }
+  const item = (table, id, title, text, hidden) => `<article class="adm"><div class="l1"><b>${esc(title)}</b>${hidden ? `<span class="mark">${esc(t("adminHidden"))}</span>` : ""}</div>${text ? `<p class="quote">${esc(text)}</p>` : ""}<div class="row">${adminHide(table, id, null, hidden)}</div></article>`;
+  box.innerHTML = rv.data.map(r => item("reviews", r.id, `${t("kindReview")}　${r.course}　${fmtDate(r.created_at)}`, r.body, r.status === "hidden")).join("")
+    + ex.data.map(x => item("exams", x.id, `${t("kindExam")}　${x.course}　${x.year}`, x.memo, x.status === "hidden")).join("")
+    || `<div class="small sub">${esc(t("adminNoPosts"))}</div>`;
+});
+
 /* 自分が追加した先生・大学の削除（ほかの人のレビューなどがある場合は削除依頼で対応） */
 async function deleteOwn(kind, id, uni) {
   if (!(await askDelete(kind === "prof" ? t("cfProfDel") : t("cfUniDel")))) return;
@@ -1214,22 +1253,23 @@ function openLeave() {
    管理（管理者だけ）
    =================================================================== */
 async function loadAdmin() {
-  const [rep, rem, cl, hr, hs, he] = await Promise.all([
+  const [rep, rem, cl, hr, hs, he, hp] = await Promise.all([
     sb.from("reports").select("*").order("created_at", { ascending: false }).limit(500),
     sb.from("removal_requests").select("*").order("status", { ascending: false }).order("created_at", { ascending: false }).limit(300),
     sb.from("faculty_claims").select("*").order("created_at", { ascending: false }).limit(200),
     sb.from("reviews").select("id,professor_id,course,body").eq("status", "hidden").limit(200),
     sb.from("school_ratings").select("id,university_id,body").eq("status", "hidden").limit(200),
     sb.from("exams").select("id,professor_id,course,memo").eq("status", "hidden").limit(200),
+    sb.from("professors").select("id,name,name_en,university_id,dept").eq("status", "hidden").limit(200),
   ]);
-  for (const x of [rep, rem, cl, hr, hs, he]) if (x.error) throw x.error;
+  for (const x of [rep, rem, cl, hr, hs, he, hp]) if (x.error) throw x.error;
   const ids = k => [...new Set(rep.data.filter(r => r.kind === k).map(r => r.target_id))];
   const get = async (tb, cols, list) => (list.length ? (await sb.from(tb).select(cols).in("id", list)).data || [] : []);
   const [tr, ts, te, tp] = await Promise.all([
     get("reviews", "id,professor_id,course,body,status", ids("review")), get("school_ratings", "id,university_id,body,status", ids("school")),
     get("exams", "id,professor_id,course,memo,status", ids("exam")), Promise.resolve(null),
   ]);
-  const pids = [...new Set([...tr, ...te, ...hr.data, ...he.data, ...cl.data].map(r => r.professor_id).filter(Boolean))];
+  const pids = [...new Set([...tr, ...te, ...hr.data, ...he.data, ...cl.data, ...rem.data].map(r => r.professor_id).filter(Boolean))];
   const names = {};
   if (pids.length) ((await sb.from("professors").select("id,name,name_en").in("id", pids)).data || []).forEach(p => (names[p.id] = { name: p.name || "", en: p.name_en || "" }));
   const targets = {};
@@ -1237,6 +1277,7 @@ async function loadAdmin() {
   ts.forEach(r => (targets["school|" + r.id] = { text: r.body || "", title: uName(uniById(r.university_id)), href: "#school." + r.university_id, hidden: r.status === "hidden", table: "school_ratings" }));
   te.forEach(r => (targets["exam|" + r.id] = { text: r.memo || "", title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id, hidden: r.status === "hidden", table: "exams" }));
   const hidden = [
+    ...hp.data.map(p => ({ id: p.id, table: "professors", text: "", title: `${t("adminProfPage")}：${pName({ name: p.name || "", en: p.name_en || "" })}（${uName(uniById(p.university_id))} ${p.dept}）`, href: "" })),
     ...hr.data.map(r => ({ id: r.id, table: "reviews", text: r.body, title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id })),
     ...hs.data.map(r => ({ id: r.id, table: "school_ratings", text: r.body || "", title: uName(uniById(r.university_id)), href: "#school." + r.university_id })),
     ...he.data.map(r => ({ id: r.id, table: "exams", text: r.memo || "", title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id })),
@@ -1274,19 +1315,25 @@ function renderAdmin(app) {
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminRemovals"))} ${d.removals.length}</button></div>
     ${d.removals.length ? d.removals.map(r => `<article class="adm">
       <div class="l1"><b>${esc(str(r.name, 60))}</b><span>${esc(str(r.university, 80))}</span><span class="mark">${esc(RO[r.role] || "")}</span><span class="mark">${esc(SC[r.scope] || "")}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span><span class="sub small">${fmtDate(r.created_at)}</span></div>
-      <div class="small"><b>${esc(t("rTarget"))}：</b>${esc(str(r.target, 200))}${r.professor_id ? ` <a href="#p.${esc(r.professor_id)}">→</a>` : ""}</div>
+      <div class="small"><b>${esc(t("rTarget"))}：</b>${esc(str(r.target, 200))}</div>
+      ${r.professor_id ? `<div class="row"><a class="btn sm" href="#p.${esc(r.professor_id)}">${esc(t("adminOpenTarget"))}</a>${adminHide("professors", r.professor_id, t("adminHidePage"))}<button class="btn sm" data-rlist="${esc(r.professor_id)}">${esc(t("adminShowPosts"))}</button></div><div data-rposts="${esc(r.professor_id)}"></div>` : `<div class="small sub">${esc(t("adminFindHint"))}</div>`}
       <p class="quote">${esc(str(r.reason, 1000))}</p>
       <div class="small"><b>${esc(t("rEmail"))}：</b><span class="sel">${esc(str(r.email, 120))}</span></div>
       <div class="row"><button class="btn sm ${r.status === "done" ? "" : "solid"}" data-rst="${esc(r.id)}|${r.status === "done" ? "open" : "done"}">${esc(r.status === "done" ? t("markOpen") : t("markDone"))}</button></div>
     </article>`).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noRemovals"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminHidden"))} ${d.hidden.length}</button></div>
-    ${d.hidden.length ? d.hidden.map(h => `<article class="adm"><div class="l1"><a href="${h.href}">${esc(h.title)}</a></div>${h.text ? `<p class="quote">${esc(h.text)}</p>` : ""}<div class="row"><button class="btn sm" data-hide="${esc(h.table)}|${esc(h.id)}|0">${esc(t("unhide"))}</button></div></article>`).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noHidden"))}</div>`}
+    ${d.hidden.length ? d.hidden.map(h => `<article class="adm"><div class="l1">${h.href ? `<a href="${h.href}">${esc(h.title)}</a>` : `<b>${esc(h.title)}</b>`}</div>${h.text ? `<p class="quote">${esc(h.text)}</p>` : ""}<div class="row">${adminHide(h.table, h.id, null, true)}</div></article>`).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noHidden"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("importTitle"))}</button></div>
     <p class="small">${esc(t("importLead"))}</p>
     <div class="row"><input type="file" id="imp-file" accept=".csv,text/csv"><label class="agree"><input type="checkbox" id="imp-short">${esc(t("importShort"))}</label></div>
     <div class="row"><button class="btn sm solid" id="imp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="imp-msg"></span></div>
+  </section>
+  <section><div class="tabs"><button aria-selected="true">${esc(t("fimpTitle"))}</button></div>
+    <p class="small">${esc(t("fimpLead"))}</p>
+    <div class="row"><button class="btn sm" id="fimp-tpl">${esc(t("pimpTemplate"))}</button><input type="file" id="fimp-file" accept=".csv,text/csv"></div>
+    <div class="row"><button class="btn sm solid" id="fimp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="fimp-msg"></span></div>
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("pimpTitle"))}</button></div>
     <p class="small">${esc(t("pimpLead"))}</p>
@@ -1317,7 +1364,7 @@ function renderAdmin(app) {
     if (error) return toast(t("reportFail"));
     invalidate("admin"); render();
   }));
-  setupImport(); setupProfImport();
+  setupImport(); setupProfImport(); setupFacImport();
 }
 /* 文部科学省の学校コードCSVから大学を取り込む */
 function setupImport() {
@@ -1370,6 +1417,7 @@ function setupProfImport() {
         res.unknown.length ? `<div>${esc(t("pimpUnknown", res.unknown.length))}　<span class="sub">${ex(res.unknown)}</span></div>` : "",
         res.dup ? `<div>${esc(t("pimpDup", res.dup))}</div>` : "",
         res.bad.length ? `<div>${esc(t("pimpBad", res.bad.length))}　<span class="sub">${ex(res.bad)}</span></div>` : "",
+        res.badFac.length ? `<div>${esc(t("pimpBadFac", res.badFac.length))}　<span class="sub">${ex(res.badFac)}</span></div>` : "",
       ].join("");
       run.disabled = !plan.length;
     } catch (e) { console.error(e); msg.textContent = t("reportFail"); msg.classList.add("ng"); }
@@ -1386,7 +1434,43 @@ function setupProfImport() {
   };
 }
 // 「経済学部 経済学科」のような書き方から学部だけを取り出す
-function facultyOnly(d) { const m = d.match(/^(.*?学部)/); return m ? m[1].trim() : d; }
+function facultyOnly(d) { const m = String(d || "").match(/^(.*?(学部|学群|学域))/); return m ? m[1].trim() : String(d || "").trim(); }
+// 学部・学群・学域のような「学部にあたる名前」かどうか
+const isFaculty = d => /(学部|学群|学域|学類|教育課程|Faculty|School|College)/i.test(d) && !/(学科|専攻|コース|研究室|講座)$/.test(d);
+/* 大学ごとの学部一覧（CSV：大学,学部）を取り込む */
+function setupFacImport() {
+  const fi = $("#fimp-file"), run = $("#fimp-run"), msg = $("#fimp-msg"); let plan = [];
+  $("#fimp-tpl").onclick = () => {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF大学,学部\n東都大学,経済学部\n東都大学,法学部\n"], { type: "text/csv" })); a.download = "faculties-template.csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  fi.onchange = async () => {
+    const file = fi.files[0]; run.disabled = true; plan = []; msg.classList.remove("ng"); if (!file) return;
+    const rows = await readCsvFile(file), clean = v => String(v || "").trim();
+    const hi = rows.findIndex(r => r.some(c => /学部/.test(clean(c))) && r.some(c => /大学|学校/.test(clean(c))));
+    const head = hi >= 0 ? rows[hi].map(clean) : [];
+    const ui = head.findIndex(h => /大学|学校/.test(h) && !/学部/.test(h)), fi2 = head.findIndex(h => /学部/.test(h));
+    if (ui < 0 || fi2 < 0) { msg.textContent = t("fimpNoHeader"); msg.classList.add("ng"); return; }
+    const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u])), unknown = new Set(), order = {};
+    for (const r of rows.slice(hi + 1)) {
+      const uv = clean(r[ui]), name = facultyOnly(clean(r[fi2])); if (!uv || !name) continue;
+      const u = byId.get(uv) || unis.find(x => sameUni(x, [uv]));
+      if (!u) { unknown.add(uv); continue; }
+      order[u.id] = (order[u.id] || 0) + 1;
+      if (!plan.some(x => x.university_id === u.id && x.name === name)) plan.push({ university_id: u.id, name, sort: order[u.id] });
+    }
+    msg.textContent = t("fimpParsed", plan.length, new Set(plan.map(x => x.university_id)).size) + (unknown.size ? "　" + t("pimpUnknown", unknown.size) + "：" + [...unknown].slice(0, 5).join("、") : "");
+    run.disabled = !plan.length;
+  };
+  run.onclick = async () => {
+    run.disabled = true;
+    for (let i = 0; i < plan.length; i += 300) {
+      const { error } = await sb.from("faculties").upsert(plan.slice(i, i + 300), { onConflict: "university_id,name" });
+      if (error) { msg.textContent = t("reportFail") + " " + error.message; msg.classList.add("ng"); return; }
+    }
+    msg.textContent = t("fimpDone", plan.length); invalidate("facs"); fi.value = "";
+  };
+}
 async function planProfImport(rows) {
   const clean = v => String(v || "").trim();
   let hi = -1;
@@ -1401,7 +1485,7 @@ async function planProfImport(rows) {
   const di = find(/学部|学科|研究科|所属|部局|dept|department|faculty/i);
   if (ui < 0 || (ni < 0 && ei < 0) || di < 0) return { error: "pimpNoHeader" };
   const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u]));
-  const existing = {}, add = [], unknown = new Set(), bad = []; let dup = 0;
+  const existing = {}, add = [], unknown = new Set(), bad = [], badFac = new Set(), facsOf = {}; let dup = 0;
   for (const r of rows.slice(hi + 1)) {
     if (!r.some(c => clean(c))) continue;
     const uv = clean(r[ui]);
@@ -1411,7 +1495,9 @@ async function planProfImport(rows) {
     const en = ei >= 0 ? clean(r[ei]).replace(/\s+/g, " ").slice(0, 60) : "";
     const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
     const dept = facultyOnly(clean(r[di])).slice(0, 60);
-    if (([...name].length < 2 && [...en].length < 2) || !dept) { bad.push(name || en || uv); continue; }
+    if (([...name].length < 2 && [...en].length < 2) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }
+    if (!facsOf[u.id]) facsOf[u.id] = await L.faculties(u.id);
+    if (facsOf[u.id].length && !facsOf[u.id].includes(dept)) { badFac.add(`${uv} ${dept}`); continue; }
     if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }
     const names = [name, en].filter(Boolean);
     if (existing[u.id].some(p => sameProf(p, names))) { dup++; continue; }
@@ -1419,7 +1505,7 @@ async function planProfImport(rows) {
     add.push(row);
     existing[u.id].push({ name, en, kana });
   }
-  return { add, unknown: [...unknown], bad, dup };
+  return { add, unknown: [...unknown], bad, dup, badFac: [...badFac] };
 }
 function parseCsv(text) {
   const out = []; let row = [], cell = "", q = false;

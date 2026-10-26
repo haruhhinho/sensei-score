@@ -1413,7 +1413,6 @@ function setupProfImport() {
         res.unknown.length ? `<div>${esc(t("pimpUnknown", res.unknown.length))}　<span class="sub">${ex(res.unknown)}</span></div>` : "",
         res.dup ? `<div>${esc(t("pimpDup", res.dup))}</div>` : "",
         res.bad.length ? `<div>${esc(t("pimpBad", res.bad.length))}　<span class="sub">${ex(res.bad)}</span></div>` : "",
-        res.badFac.length ? `<div>${esc(t("pimpBadFac", res.badFac.length))}　<span class="sub">${ex(res.badFac)}</span></div>` : "",
       ].join("");
       run.disabled = !plan.length;
     } catch (e) { console.error(e); msg.textContent = t("reportFail"); msg.classList.add("ng"); }
@@ -1449,7 +1448,7 @@ async function planProfImport(rows) {
   const di = find(/学部|学科|研究科|所属|部局|dept|department|faculty/i);
   if (ui < 0 || (ni < 0 && ei < 0) || di < 0) return { error: "pimpNoHeader" };
   const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u]));
-  const existing = {}, add = [], unknown = new Set(), bad = [], badFac = new Set(), facsOf = {}; let dup = 0;
+  const existing = {}, add = [], unknown = new Set(), bad = []; let dup = 0;
   for (const r of rows.slice(hi + 1)) {
     if (!r.some(c => clean(c))) continue;
     const uv = clean(r[ui]);
@@ -1467,7 +1466,7 @@ async function planProfImport(rows) {
     add.push(row);
     existing[u.id].push({ name, en, kana });
   }
-  return { add, unknown: [...unknown], bad, dup, badFac: [...badFac] };
+  return { add, unknown: [...unknown], bad, dup };
 }
 function parseCsv(text) {
   const out = []; let row = [], cell = "", q = false;

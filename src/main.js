@@ -594,41 +594,42 @@ function renderAdd(app, uid) {
   const u = uniById(uid);
   if (!u) { app.innerHTML = notFound(); return; }
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#u." + uid, "← " + uName(u)])}<div class="notice"><b>${esc(t("needLoginAdd"))}</b>${loginLink()}</div>`; return; }
-  const pre = S.addPrefill, preJa = hasJa(pre) ? pre : "", preEn = hasJa(pre) ? "" : pre;
-  const facs = need("facs:" + uid, () => L.faculties(uid));
-  if (facs === undefined) { app.innerHTML = LOADING(); return; }
+  // 検索欄に入れた名前を、姓と名に分けて最初から入れておく
+  const pre = String(S.addPrefill || "").trim(), parts = pre.split(/[\s　]+/);
+  const preJa = hasJa(pre) ? parts : ["", ""], preEn = !hasJa(pre) && pre ? (parts.length > 1 ? [parts[parts.length - 1], parts.slice(0, -1).join(" ")] : [pre, ""]) : ["", ""];
   if (!S.form || S.form.kind !== "add") S.form = { kind: "add" };
-  const list = Array.isArray(facs) ? facs : [];
-  const inList = list.includes(S.addDept);
+  const pair = (idA, idB, la, lb, va, vb, max) => `<div class="namepair"><label><span class="small sub">${esc(la)}</span><input id="${idA}" type="text" maxlength="${max}" value="${esc(va || "")}"></label><label><span class="small sub">${esc(lb)}</span><input id="${idB}" type="text" maxlength="${max}" value="${esc(vb || "")}"></label></div>`;
   app.innerHTML = `${crumb(["#home", t("top")], ["#u." + uid, uName(u)], [null, t("addProf")])}
   <section class="title"><h1>${esc(t("addProf"))}</h1><p>${esc(t("addLead", uName(u)))}</p></section>
   <form id="af" novalidate style="display:flex;flex-direction:column;gap:20px">
     <div class="sheet">
-      <div class="q"><label class="lb" for="a-name">${esc(t("nameJa"))}<small>${esc(t("optional"))}</small></label><input id="a-name" type="text" maxlength="40" value="${esc(preJa)}"></div>
-      <div class="q"><label class="lb" for="a-kana">${esc(t("uniKana"))}<small>${esc(t("optional"))}</small></label><input id="a-kana" type="text" maxlength="40"></div>
-      <div class="q"><label class="lb" for="a-en">${esc(t("nameEn"))}<small>${esc(t("required"))}</small></label><input id="a-en" type="text" maxlength="60" value="${esc(preEn)}"></div>
-      <div class="q"><label class="lb" for="${list.length ? "a-fac" : "a-dept"}">${esc(t("dept"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-        ${list.length ? `<select id="a-fac" class="selbox"><option value="">${esc(t("chooseFac"))}</option>${list.map(f => `<option ${f === S.addDept ? "selected" : ""}>${esc(f)}</option>`).join("")}<option value="__other" ${S.addDept && !inList ? "selected" : ""}>${esc(t("facOther"))}</option></select>` : ""}
-        <input id="a-dept" type="text" maxlength="40" value="${esc(inList ? "" : S.addDept)}" placeholder="${esc(t("facPh"))}" ${list.length && !(S.addDept && !inList) ? "hidden" : ""}>
-        <span class="small sub">${esc(list.length ? t("facHintList") : t("facHintFree"))}</span></div></div>
+      <div class="q"><span class="lb">${esc(t("nameEn"))}<small>${esc(t("required"))}</small></span>${pair("a-enf", "a-eng", t("famEn"), t("givEn"), preEn[0], preEn[1], 30)}</div>
+      <div class="q"><span class="lb">${esc(t("nameJa"))}<small>${esc(t("optional"))}</small></span>${pair("a-jaf", "a-jag", t("famJa"), t("givJa"), preJa[0], preJa.slice(1).join(" "), 20)}</div>
+      <div class="q"><span class="lb">${esc(t("uniKana"))}<small>${esc(t("optional"))}</small></span>${pair("a-kaf", "a-kag", t("famKana"), t("givKana"), "", "", 20)}</div>
+      <div class="q"><label class="lb" for="a-dept">${esc(t("dept"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+        <input id="a-dept" type="text" maxlength="40" value="${esc(S.addDept)}" placeholder="${esc(t("facPh"))}">
+        <span class="small sub">${esc(t("facHintFree"))}</span></div></div>
     </div>
     <div class="row"><button class="btn solid" type="submit" id="a-sub">${esc(t("addBtn"))}</button><a class="btn" href="#u.${esc(uid)}">${esc(t("cancel"))}</a><span class="msg" id="a-msg"></span></div>
   </form>`;
   app.querySelectorAll("#af input").forEach(i => i.addEventListener("input", () => (S.form.started = true)));
-  const fsel = $("#a-fac"); if (fsel) fsel.onchange = () => { S.form.started = true; $("#a-dept").hidden = fsel.value !== "__other"; if (fsel.value === "__other") $("#a-dept").focus(); };
+  const v = id => $("#" + id).value.trim().replace(/[\s　]+/g, " ");
   $("#af").onsubmit = async e => {
     e.preventDefault(); if (S.busy) return;
-    const name = $("#a-name").value.trim(), en = $("#a-en").value.trim(), kana = $("#a-kana").value.trim(), msg = $("#a-msg");
-    const dept = fsel && fsel.value && fsel.value !== "__other" ? fsel.value : facultyOnly($("#a-dept").value.trim());
-    msg.classList.add("ng");
-    if (!isRoman(en)) { msg.textContent = t("eNameEn"); return; }
+    const msg = $("#a-msg"); msg.classList.add("ng");
+    const enF = v("a-enf"), enG = v("a-eng"), jaF = v("a-jaf"), jaG = v("a-jag"), kaF = v("a-kaf"), kaG = v("a-kag");
+    if (!isRoman(enF) || !isRoman(enG)) { msg.textContent = t("eNameEn"); return; }
+    if ((jaF && !jaG) || (!jaF && jaG)) { msg.textContent = t("eNameJaPair"); return; }
+    const cap = w => w.split(" ").map(x => x.split("-").map(p => (p === p.toUpperCase() || p === p.toLowerCase() ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p)).join("-")).join(" ");
+    const en = `${cap(enG)} ${cap(enF)}`, name = jaF ? `${jaF} ${jaG}` : "", kana = kaF || kaG ? `${kaF} ${kaG}`.trim() : "";
+    const dept = facultyOnly(v("a-dept"));
     if (!dept) { msg.textContent = t("eDept"); return; }
     if (!isFaculty(dept)) { msg.textContent = t("eDeptFormat"); return; }
     let list = peek("profs:" + uid); if (!Array.isArray(list)) { try { list = await L.profs(uid); } catch { list = []; } }
     const dup = list.find(p => sameProf(p, [name, en].filter(Boolean)));
     if (dup) { msg.innerHTML = `${esc(t("dupProf"))} <a href="#p.${esc(dup.id)}">${esc(pName(dup))}</a>`; return; }
     S.busy = true; $("#a-sub").disabled = true; msg.classList.remove("ng"); msg.textContent = t("adding");
-    const { data, error } = await sb.from("professors").insert({ university_id: uid, name: name || null, name_en: en || null, kana: kana || null, dept, created_by: S.MYID }).select("id").single();
+    const { data, error } = await sb.from("professors").insert({ university_id: uid, name: name || null, name_en: en, kana: kana || null, dept, created_by: S.MYID }).select("id").single();
     S.busy = false;
     if (error) { $("#a-sub").disabled = false; msg.classList.add("ng"); msg.textContent = t("addFail"); return; }
     S.form = null; invalidate("profs:" + uid, "me"); go("p." + data.id); toast(t("added"));
@@ -1330,11 +1331,6 @@ function renderAdmin(app) {
     <div class="row"><input type="file" id="imp-file" accept=".csv,text/csv"><label class="agree"><input type="checkbox" id="imp-short">${esc(t("importShort"))}</label></div>
     <div class="row"><button class="btn sm solid" id="imp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="imp-msg"></span></div>
   </section>
-  <section><div class="tabs"><button aria-selected="true">${esc(t("fimpTitle"))}</button></div>
-    <p class="small">${esc(t("fimpLead"))}</p>
-    <div class="row"><button class="btn sm" id="fimp-tpl">${esc(t("pimpTemplate"))}</button><input type="file" id="fimp-file" accept=".csv,text/csv"></div>
-    <div class="row"><button class="btn sm solid" id="fimp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="fimp-msg"></span></div>
-  </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("pimpTitle"))}</button></div>
     <p class="small">${esc(t("pimpLead"))}</p>
     <p class="small sub">${esc(t("pimpCols"))}</p>
@@ -1364,7 +1360,7 @@ function renderAdmin(app) {
     if (error) return toast(t("reportFail"));
     invalidate("admin"); render();
   }));
-  setupImport(); setupProfImport(); setupFacImport();
+  setupImport(); setupProfImport();
 }
 /* 文部科学省の学校コードCSVから大学を取り込む */
 function setupImport() {
@@ -1439,40 +1435,6 @@ const isRoman = v => [...String(v || "").trim()].length >= 2 && /[A-Za-z]/.test(
 function facultyOnly(d) { const m = String(d || "").match(/^(.*?(学部|学群|学域))/); return m ? m[1].trim() : String(d || "").trim(); }
 // 学部・学群・学域のような「学部にあたる名前」かどうか
 const isFaculty = d => /(学部|学群|学域|学類|教育課程|Faculty|School|College)/i.test(d) && !/(学科|専攻|コース|研究室|講座)$/.test(d);
-/* 大学ごとの学部一覧（CSV：大学,学部）を取り込む */
-function setupFacImport() {
-  const fi = $("#fimp-file"), run = $("#fimp-run"), msg = $("#fimp-msg"); let plan = [];
-  $("#fimp-tpl").onclick = () => {
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF大学,学部\n東都大学,経済学部\n東都大学,法学部\n"], { type: "text/csv" })); a.download = "faculties-template.csv"; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  };
-  fi.onchange = async () => {
-    const file = fi.files[0]; run.disabled = true; plan = []; msg.classList.remove("ng"); if (!file) return;
-    const rows = await readCsvFile(file), clean = v => String(v || "").trim();
-    const hi = rows.findIndex(r => r.some(c => /学部/.test(clean(c))) && r.some(c => /大学|学校/.test(clean(c))));
-    const head = hi >= 0 ? rows[hi].map(clean) : [];
-    const ui = head.findIndex(h => /大学|学校/.test(h) && !/学部/.test(h)), fi2 = head.findIndex(h => /学部/.test(h));
-    if (ui < 0 || fi2 < 0) { msg.textContent = t("fimpNoHeader"); msg.classList.add("ng"); return; }
-    const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u])), unknown = new Set(), order = {};
-    for (const r of rows.slice(hi + 1)) {
-      const uv = clean(r[ui]), name = facultyOnly(clean(r[fi2])); if (!uv || !name) continue;
-      const u = byId.get(uv) || unis.find(x => sameUni(x, [uv]));
-      if (!u) { unknown.add(uv); continue; }
-      order[u.id] = (order[u.id] || 0) + 1;
-      if (!plan.some(x => x.university_id === u.id && x.name === name)) plan.push({ university_id: u.id, name, sort: order[u.id] });
-    }
-    msg.textContent = t("fimpParsed", plan.length, new Set(plan.map(x => x.university_id)).size) + (unknown.size ? "　" + t("pimpUnknown", unknown.size) + "：" + [...unknown].slice(0, 5).join("、") : "");
-    run.disabled = !plan.length;
-  };
-  run.onclick = async () => {
-    run.disabled = true;
-    for (let i = 0; i < plan.length; i += 300) {
-      const { error } = await sb.from("faculties").upsert(plan.slice(i, i + 300), { onConflict: "university_id,name" });
-      if (error) { msg.textContent = t("reportFail") + " " + error.message; msg.classList.add("ng"); return; }
-    }
-    msg.textContent = t("fimpDone", plan.length); invalidate("facs"); fi.value = "";
-  };
-}
 async function planProfImport(rows) {
   const clean = v => String(v || "").trim();
   let hi = -1;
@@ -1498,8 +1460,6 @@ async function planProfImport(rows) {
     const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
     const dept = facultyOnly(clean(r[di])).slice(0, 60);
     if (!isRoman(en) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }
-    if (!facsOf[u.id]) facsOf[u.id] = await L.faculties(u.id);
-    if (facsOf[u.id].length && !facsOf[u.id].includes(dept)) { badFac.add(`${uv} ${dept}`); continue; }
     if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }
     const names = [name, en].filter(Boolean);
     if (existing[u.id].some(p => sameProf(p, names))) { dup++; continue; }

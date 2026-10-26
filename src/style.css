@@ -375,3 +375,8 @@ footer{margin:32px -16px 0;padding:0 16px calc(24px + env(safe-area-inset-bottom
   .crumb{font-size:12px}
 }
 @media (max-width:420px){.srev .cats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 先生を追加：姓と名を分けて入力 */
+.namepair{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0}
+.namepair label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.namepair input{width:100%}

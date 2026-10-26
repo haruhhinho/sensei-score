@@ -10,15 +10,18 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const quality = intIn(b.quality, 1, 5), difficulty = intIn(b.difficulty, 1, 5);
   if (!isUuid(professorId) || !course || quality == null || difficulty == null) return fail("invalid");
   const len = [...text].length;
-  if (len < 15 || len > 350) return fail("invalid_length");
+  if ((len > 0 && len < 15) || len > 350) return fail("invalid_length");
   const grade = GRADES.includes(b.grade) ? b.grade : null;
   const prof = await db(env, `professors?id=eq.${professorId}&status=eq.active&select=id`);
   if (!prof.length) return fail("not_found", 404);
   const dup = await db(env, `reviews?user_id=eq.${user.id}&professor_id=eq.${professorId}&course=eq.${encodeURIComponent('"'+course.replace(/["\\]/g,"\\$&")+'"')}&select=id`);
   if (dup.length) return fail("duplicate", 409);
 
-  const m = await moderate(env, { context: `a review of a university professor's course "${course}"`, text, maxLen: 350, lang });
-  if (m.verdict !== "ok") return json({ ok: false, code: "moderation", check: m });
+  // コメントは任意。書かれているときだけAIで確認する
+  if (len) {
+    const m = await moderate(env, { context: `a review of a university professor's course "${course}"`, text, maxLen: 350, lang });
+    if (m.verdict !== "ok") return json({ ok: false, code: "moderation", check: m });
+  }
 
   await db(env, "reviews", {
     method: "POST", prefer: "return=minimal",
@@ -26,7 +29,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
       professor_id: professorId, user_id: user.id, course, quality, difficulty,
       would_take_again: typeof b.again === "boolean" ? b.again : null,
       attendance_required: typeof b.att === "boolean" ? b.att : null,
-      grade, body: text, ai_checked: true,
+      grade, body: len ? text : null, ai_checked: true,
     },
   });
   return json({ ok: true });

@@ -368,7 +368,7 @@ function drawRevs(p, rs) {
       <div class="bd">
         <div class="l1"><span class="course">${esc(cName(r.course))}</span><span class="date">${fmtDate(r.at)}</span></div>
         <div class="at">${r.again != null ? `<span>${esc(t("again"))}<b>${esc(r.again ? t("yes") : t("no"))}</b></span>` : ""}${r.att != null ? `<span>${esc(t("att"))}<b>${esc(r.att ? t("req") : t("opt"))}</b></span>` : ""}${r.grade ? `<span>${esc(t("grade"))}<b>${esc(G[r.grade] || r.grade)}</b></span>` : ""}</div>
-        ${trP(r.id, r.text)}${replyHTML(r, replies[r.id], canReply)}
+        ${r.text ? trP(r.id, r.text) : ""}${replyHTML(r, replies[r.id], canReply)}
         <div class="ft"><span>${esc(t("anon"))}</span>${trB(r.id, r.text)}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-del="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("review", r.id)}${S.ISADMIN ? adminHide("reviews", r.id) : ""}</div>
       </div>
     </article>`).join("") : `<div class="notice" style="margin-top:16px">${esc(rs.length ? t("noRevCourse") : t("noRev"))}</div>`;
@@ -535,9 +535,9 @@ function renderRate(app, pid) {
     if (!course) return setMsg(t("eCourse"), 1);
     if (!f.q) return setMsg(t("eQ"), 1);
     if (!f.d) return setMsg(t("eD"), 1);
-    if (len < 15) return setMsg(t("eShort"), 1);
+    if (len > 0 && len < 15) return setMsg(t("eShort"), 1);
     if (len > 350) return setMsg(t("eLong"), 1);
-    S.busy = true; const btn = $("#f-sub"); btn.disabled = true; setMsg(t("aiChecking"));
+    S.busy = true; const btn = $("#f-sub"); btn.disabled = true; setMsg(len ? t("aiChecking") : t("posting"));
     try {
       const res = await api("post-review", { professorId: pid, course, quality: f.q, difficulty: f.d, again: f.again, att: f.att, grade: f.grade || null, text, lang: S.LANG });
       if (!res.ok) { setMsg(""); checkBox($("#f-check"), res.check, ta, 350); return; }
@@ -604,9 +604,9 @@ function renderAdd(app, uid) {
   <section class="title"><h1>${esc(t("addProf"))}</h1><p>${esc(t("addLead", uName(u)))}</p></section>
   <form id="af" novalidate style="display:flex;flex-direction:column;gap:20px">
     <div class="sheet">
-      <div class="q"><label class="lb" for="a-name">${esc(t("nameJa"))}<small>${esc(t("oneOf"))}</small></label><input id="a-name" type="text" maxlength="40" value="${esc(preJa)}"></div>
+      <div class="q"><label class="lb" for="a-name">${esc(t("nameJa"))}<small>${esc(t("optional"))}</small></label><input id="a-name" type="text" maxlength="40" value="${esc(preJa)}"></div>
       <div class="q"><label class="lb" for="a-kana">${esc(t("uniKana"))}<small>${esc(t("optional"))}</small></label><input id="a-kana" type="text" maxlength="40"></div>
-      <div class="q"><label class="lb" for="a-en">${esc(t("nameEn"))}<small>${esc(t("oneOf"))}</small></label><input id="a-en" type="text" maxlength="60" value="${esc(preEn)}"></div>
+      <div class="q"><label class="lb" for="a-en">${esc(t("nameEn"))}<small>${esc(t("required"))}</small></label><input id="a-en" type="text" maxlength="60" value="${esc(preEn)}"></div>
       <div class="q"><label class="lb" for="${list.length ? "a-fac" : "a-dept"}">${esc(t("dept"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
         ${list.length ? `<select id="a-fac" class="selbox"><option value="">${esc(t("chooseFac"))}</option>${list.map(f => `<option ${f === S.addDept ? "selected" : ""}>${esc(f)}</option>`).join("")}<option value="__other" ${S.addDept && !inList ? "selected" : ""}>${esc(t("facOther"))}</option></select>` : ""}
         <input id="a-dept" type="text" maxlength="40" value="${esc(inList ? "" : S.addDept)}" placeholder="${esc(t("facPh"))}" ${list.length && !(S.addDept && !inList) ? "hidden" : ""}>
@@ -621,7 +621,7 @@ function renderAdd(app, uid) {
     const name = $("#a-name").value.trim(), en = $("#a-en").value.trim(), kana = $("#a-kana").value.trim(), msg = $("#a-msg");
     const dept = fsel && fsel.value && fsel.value !== "__other" ? fsel.value : facultyOnly($("#a-dept").value.trim());
     msg.classList.add("ng");
-    if ([...name].length < 2 && [...en].length < 2) { msg.textContent = t("eName"); return; }
+    if (!isRoman(en)) { msg.textContent = t("eNameEn"); return; }
     if (!dept) { msg.textContent = t("eDept"); return; }
     if (!isFaculty(dept)) { msg.textContent = t("eDeptFormat"); return; }
     let list = peek("profs:" + uid); if (!Array.isArray(list)) { try { list = await L.profs(uid); } catch { list = []; } }
@@ -1079,7 +1079,7 @@ function renderFaculty(app) {
     <div class="figs"><div><b>${s.n ? s.q.toFixed(1) : "—"}</b><span>${esc(t("ov"))}</span></div><div><b>${s.n}</b><span>${esc(t("count"))}</span></div><div><b>${s.n && s.again != null ? s.again + "%" : "—"}</b><span>${esc(t("again"))}</span></div><div><b>${s.n ? s.d.toFixed(1) : "—"}</b><span>${esc(t("diff"))}</span></div></div>
     <div class="row"><a class="btn" href="#p.${esc(pid)}">${esc(t("openPage"))}</a></div>
     <section><div class="tabs"><button aria-selected="true">${esc(t("recent"))}</button></div>
-      ${rs.slice(0, 30).map(r => `<article class="adm"><div class="l1"><b>${esc(r.course)}</b><span class="sq ${cls(r.q)}" style="width:40px;height:32px;font-size:14px">${r.q.toFixed(1)}</span><span class="sub small">${fmtDate(r.at)}</span></div>${trP("fd_" + r.id, r.text, "quote")}${replyHTML(r, replies[r.id], true)}</article>`).join("")}
+      ${rs.slice(0, 30).map(r => `<article class="adm"><div class="l1"><b>${esc(r.course)}</b><span class="sq ${cls(r.q)}" style="width:40px;height:32px;font-size:14px">${r.q.toFixed(1)}</span><span class="sub small">${fmtDate(r.at)}</span></div>${r.text ? trP("fd_" + r.id, r.text, "quote") : ""}${replyHTML(r, replies[r.id], true)}</article>`).join("")}
     </section>`;
     return;
   }
@@ -1434,6 +1434,8 @@ function setupProfImport() {
   };
 }
 // 「経済学部 経済学科」のような書き方から学部だけを取り出す
+// アルファベットの氏名として使えるか（2文字以上で、ローマ字を含む）
+const isRoman = v => [...String(v || "").trim()].length >= 2 && /[A-Za-z]/.test(v) && !/[\u3040-\u30ff\u3400-\u9fff]/.test(v);
 function facultyOnly(d) { const m = String(d || "").match(/^(.*?(学部|学群|学域))/); return m ? m[1].trim() : String(d || "").trim(); }
 // 学部・学群・学域のような「学部にあたる名前」かどうか
 const isFaculty = d => /(学部|学群|学域|学類|教育課程|Faculty|School|College)/i.test(d) && !/(学科|専攻|コース|研究室|講座)$/.test(d);
@@ -1495,7 +1497,7 @@ async function planProfImport(rows) {
     const en = ei >= 0 ? clean(r[ei]).replace(/\s+/g, " ").slice(0, 60) : "";
     const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
     const dept = facultyOnly(clean(r[di])).slice(0, 60);
-    if (([...name].length < 2 && [...en].length < 2) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }
+    if (!isRoman(en) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }
     if (!facsOf[u.id]) facsOf[u.id] = await L.faculties(u.id);
     if (facsOf[u.id].length && !facsOf[u.id].includes(dept)) { badFac.add(`${uv} ${dept}`); continue; }
     if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }

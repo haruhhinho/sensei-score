@@ -14,7 +14,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const total = (await db(env, `professor_stats?id=eq.${b.professorId}&select=n`))[0]?.n ?? rs.length;
   if (old.length && old[0].review_count === total) return json({ ok: true, unchanged: true });
   const yn = v => (v == null ? "n/a" : v ? "yes" : "no");
-  const revText = rs.map(r => `- [${r.course}] quality ${r.quality}/5, difficulty ${r.difficulty}/5, would take again: ${yn(r.would_take_again)}, attendance mandatory: ${yn(r.attendance_required)}. Comment: ${r.body}`).join("\n");
+  const revText = rs.map(r => `- [${r.course}] quality ${r.quality}/5, difficulty ${r.difficulty}/5, would take again: ${yn(r.would_take_again)}, attendance mandatory: ${yn(r.attendance_required)}. Comment: ${r.body || "(none)"}`).join("\n");
   const prof = p[0];
   const prompt = `You edit a site where university students review their professors. Below are anonymous reviews (in Japanese and/or English) of professor ${prof.name || prof.name_en}${prof.name && prof.name_en ? ` (${prof.name_en})` : ""}, ${prof.dept}.
 Summarize what the professor and their courses are like in exactly 3 lines for students deciding whether to enroll.

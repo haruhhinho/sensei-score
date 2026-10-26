@@ -10,5 +10,7 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // 管理画面で入れた変数を、公開のたびに消さないようにする
+  "keep_vars": true
 }

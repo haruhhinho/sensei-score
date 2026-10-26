@@ -45,6 +45,7 @@ function statsOf(rs) {
 function route() {
   const h = decodeURIComponent(location.hash.slice(1)), dot = h.indexOf(".");
   const v = dot < 0 ? h : h.slice(0, dot), id = dot < 0 ? "" : h.slice(dot + 1);
+  if (v === "unis") { const i = id.indexOf("~"); if (i > 0 && id.slice(i + 1).trim()) return { v, id: id.slice(0, i), q: id.slice(i + 1) }; return { v: "home" }; }
   if (v === "find" || v === "dept") { const i = id.indexOf("~"); if (i > 0 && id.slice(i + 1).trim()) return { v, id: id.slice(0, i), q: id.slice(i + 1) }; return { v: "home" }; }
   if (["u", "p", "rate", "add", "school", "srate", "exam", "removal"].includes(v)) return { v: v === "u" ? "uni" : v === "p" ? "prof" : v, id };
   if (["help", "terms", "privacy", "cookies", "copyright", "contact"].includes(v)) return { v: "legal", id: v };
@@ -116,7 +117,7 @@ function render() {
     home: renderHome, uni: renderFind, prof: renderProf, rate: renderRate, add: renderAdd, school: renderSchool,
     srate: renderSRate, exam: renderExamForm, removal: renderRemoval, legal: renderLegal, guidelines: renderGuide,
     admin: renderAdmin, faculty: renderFaculty, adduni: renderAddUni, me: renderMe, login: renderLogin,
-    dept: (a, id) => renderDept(a, id, r.q), find: (a, id) => renderResults(a, id, r.q),
+    dept: (a, id) => renderDept(a, id, r.q), find: (a, id) => renderResults(a, id, r.q), unis: (a, id) => renderUniResults(a, id, r.q),
   }[r.v];
   fn(app, r.id);
 }
@@ -156,7 +157,7 @@ function renderHome(app) {
     out.innerHTML = hits.map(u => `<li><a href="#u.${esc(u.id)}"><span>${esc(uName(u))}${S.LANG === "en" && u.en ? `<span class="sub">　${esc(u.name)}</span>` : ""}</span><span class="sub">${esc(uPref(u))}</span></a></li>`).join("");
     $("#uafter").innerHTML = q ? `<div class="addrow"><span class="sub small">${esc(t("addUniHint"))}</span><a class="btn sm" href="#adduni" data-addu="${esc(inp.value.trim())}">＋ ${esc(t("addUniBtn"))}</a></div>` : "";
   };
-  kbNav(inp, out, () => inp.oninput());
+  kbNav(inp, out, () => goUniResults("p", inp.value));
   const c = $("#cancelchg"); if (c) c.onclick = () => { S.changingUni = false; render(); };
   inp.focus({ preventScroll: true });
 }
@@ -208,6 +209,18 @@ function kbNav(inp, list, fallback) {
     else if (e.key === "Escape") inp.blur();
   };
 }
+// 候補の最後に置く「大学を追加」
+const addUniItem = q => `<li class="additem"><a href="#adduni" data-addu="${esc(String(q || "").trim())}"><span>＋ ${esc(t("addUniBtn"))}</span></a></li>`;
+// 候補を選ばずに Enter を押したときの大学の検索結果（p＝先生をさがす、s＝大学の評価）
+const goUniResults = (m, q) => { q = String(q || "").trim(); if (q) go("unis." + m + "~" + q); };
+function renderUniResults(app, m, q) {
+  const list = allUnis().filter(u => uniMatches(u, norm(q))).slice(0, 200);
+  const href = u => (m === "s" ? "#school." : "#u.") + u.id;
+  app.innerHTML = `${crumb(["#home", t("top")], [null, t("searchTop")])}
+  <section class="title"><h1>${esc(t("resultsTitle", q))}</h1><p>${esc(t("uniResultsCount", list.length))}</p></section>
+  ${list.length ? `<ul class="hits static">${list.map(u => `<li><a href="${href(u)}"><span>${esc(uName(u))}${S.LANG === "en" && u.en ? `<span class="sub">　${esc(u.name)}</span>` : ""}</span><span class="sub">${esc(uPref(u))}</span></a></li>`).join("")}</ul>` : `<div class="notice">${esc(t("noResults"))}</div>`}
+  <div class="addrow"><span class="sub small">${esc(t("addUniHint"))}</span><a class="btn sm" href="#adduni" data-addu="${esc(q)}">＋ ${esc(t("addUniBtn"))}</a></div>`;
+}
 const goResults = (uid, q) => { q = q.trim(); if (q && uid) { S.pendingTeacher = ""; go("find." + uid + "~" + q); } };
 const addProfLink = (uid, pre, dept) => `<div class="addrow"><span class="sub small">${esc(t("addProfHint"))}</span><a class="btn sm" href="#add.${esc(uid)}" data-addp="${esc(pre || "")}" data-addd="${esc(dept || "")}">＋ ${esc(t("addProfBtn"))}</a></div>`;
 document.addEventListener("click", e => {
@@ -236,18 +249,18 @@ function applyMode() {
 function showSchoolHits() {
   const q = norm($("#b-school").value), dd = $("#dd-school");
   const hits = q ? allUnis().filter(u => uniMatches(u, q)).slice(0, 20) : [];
-  if (!hits.length) { dd.hidden = true; return; }
-  dd.innerHTML = hits.map(u => `<li><a href="#school.${esc(u.id)}"><span>${esc(uName(u))}<span class="sub">　${esc(uPref(u))}</span></span></a></li>`).join("");
+  if (!q) { dd.hidden = true; return; }
+  dd.innerHTML = hits.map(u => `<li><a href="#school.${esc(u.id)}"><span>${esc(uName(u))}<span class="sub">　${esc(uPref(u))}</span></span></a></li>`).join("") + addUniItem($("#b-school").value);
   dd.hidden = false;
   dd.querySelectorAll("a").forEach(a => { a.onmousedown = e => e.preventDefault(); a.onclick = () => $("#b-school").blur(); });
 }
 function showUniHits() {
   const q = norm($("#b-uni").value), dd = $("#dd-uni");
   const hits = q ? allUnis().filter(u => uniMatches(u, q)).slice(0, 20) : [];
-  if (!hits.length) { dd.hidden = true; return; }
-  dd.innerHTML = hits.map(u => `<li><a href="#u.${esc(u.id)}" data-u="${esc(u.id)}"><span>${esc(uName(u))}</span><span class="sub">${esc(uPref(u))}</span></a></li>`).join("");
+  if (!q) { dd.hidden = true; return; }
+  dd.innerHTML = hits.map(u => `<li><a href="#u.${esc(u.id)}" data-u="${esc(u.id)}"><span>${esc(uName(u))}</span><span class="sub">${esc(uPref(u))}</span></a></li>`).join("") + addUniItem($("#b-uni").value);
   dd.hidden = false;
-  dd.querySelectorAll("a").forEach(a => { a.onmousedown = e => e.preventDefault(); a.onclick = e => { e.preventDefault(); pickUni(a.dataset.u); }; });
+  dd.querySelectorAll("a").forEach(a => { a.onmousedown = e => e.preventDefault(); a.onclick = e => { if (!a.dataset.u) { $("#b-uni").blur(); return; } e.preventDefault(); pickUni(a.dataset.u); }; });
 }
 // 先生の名前を残したまま大学を変えたときは、その大学の同じ先生（日本語・英語どちらの表記でも）を探す
 async function pickUni(uid) {
@@ -278,9 +291,9 @@ function initBar() {
   const bu = $("#b-uni"), bp = $("#b-prof"), bs = $("#b-school");
   bu.oninput = showUniHits; bp.oninput = showProfHits; bs.oninput = showSchoolHits;
   bu.onfocus = () => bu.select(); bp.onfocus = () => { if (bp.value) showProfHits(); }; bs.onfocus = () => bs.select();
-  kbNav(bu, $("#dd-uni"), showUniHits);
+  kbNav(bu, $("#dd-uni"), () => { const q = bu.value; bu.blur(); goUniResults("p", q); });
   kbNav(bp, $("#dd-prof"), () => { const q = bp.value; bp.blur(); goResults(S.ctxUni, q); });
-  kbNav(bs, $("#dd-school"), showSchoolHits);
+  kbNav(bs, $("#dd-school"), () => { const q = bs.value; bs.blur(); goUniResults("s", q); });
   bu.onblur = () => { $("#dd-uni").hidden = true; bu.value = S.ctxUni ? uName(uniById(S.ctxUni)) : ""; };
   bp.onblur = () => { $("#dd-prof").hidden = true; };
   bs.onblur = () => { $("#dd-school").hidden = true; };
@@ -603,16 +616,20 @@ function renderAdd(app, uid) {
   <section class="title"><h1>${esc(t("addProf"))}</h1><p>${esc(t("addLead", uName(u)))}</p></section>
   <form id="af" novalidate style="display:flex;flex-direction:column;gap:20px">
     <div class="sheet">
-      <div class="q"><span class="lb">${esc(t("nameEn"))}<small>${esc(t("required"))}</small></span>${pair("a-enf", "a-eng", t("famEn"), t("givEn"), preEn[0], preEn[1], 30)}</div>
+      <div class="q"><span class="lb">${esc(t("nameEn"))}<small>${esc(t("required"))}</small></span><div style="min-width:0">${pair("a-enf", "a-eng", t("famEn"), t("givEn"), fmtRoman(preEn[0]), fmtRoman(preEn[1]), 30)}<span class="small sub">${esc(t("enFmtHint"))}</span></div></div>
       <div class="q"><span class="lb">${esc(t("nameJa"))}<small>${esc(t("optional"))}</small></span>${pair("a-jaf", "a-jag", t("famJa"), t("givJa"), preJa[0], preJa.slice(1).join(" "), 20)}</div>
       <div class="q"><span class="lb">${esc(t("uniKana"))}<small>${esc(t("optional"))}</small></span>${pair("a-kaf", "a-kag", t("famKana"), t("givKana"), "", "", 20)}</div>
       <div class="q"><label class="lb" for="a-dept">${esc(t("dept"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-        <input id="a-dept" type="text" maxlength="40" value="${esc(S.addDept)}" placeholder="${esc(t("facPh"))}">
-        <span class="small sub">${esc(t("facHintFree"))}</span></div></div>
+        <input id="a-dept" type="text" maxlength="40" value="${esc(S.addDept)}" placeholder="${esc(t("facPh"))}" list="a-deptlist" autocomplete="off">
+        <datalist id="a-deptlist">${(() => { const l = profsOf(uid); return Array.isArray(l) ? [...new Set(l.map(p => p.dept).filter(Boolean))].sort().map(d => `<option value="${esc(d)}"></option>`).join("") : ""; })()}</datalist>
+        <span class="small sub">${esc(t("facHintSuggest"))}</span></div></div>
     </div>
     <div class="row"><button class="btn solid" type="submit" id="a-sub">${esc(t("addBtn"))}</button><a class="btn" href="#u.${esc(uid)}">${esc(t("cancel"))}</a><span class="msg" id="a-msg"></span></div>
   </form>`;
   app.querySelectorAll("#af input").forEach(i => i.addEventListener("input", () => (S.form.started = true)));
+  // ローマ字は入力したそばから「先頭だけ大文字・あとは小文字」に整える。読みはひらがなにそろえる
+  ["a-enf", "a-eng"].forEach(id => { const el = $("#" + id); el.addEventListener("input", () => liveFormat(el, fmtRoman)); el.addEventListener("blur", () => (el.value = fmtRoman(el.value).trim())); });
+  ["a-kaf", "a-kag"].forEach(id => { const el = $("#" + id); el.addEventListener("blur", () => (el.value = toHira(el.value).trim())); });
   const v = id => $("#" + id).value.trim().replace(/[\s　]+/g, " ");
   $("#af").onsubmit = async e => {
     e.preventDefault(); if (S.busy) return;
@@ -620,8 +637,7 @@ function renderAdd(app, uid) {
     const enF = v("a-enf"), enG = v("a-eng"), jaF = v("a-jaf"), jaG = v("a-jag"), kaF = v("a-kaf"), kaG = v("a-kag");
     if (!isRoman(enF) || !isRoman(enG)) { msg.textContent = t("eNameEn"); return; }
     if ((jaF && !jaG) || (!jaF && jaG)) { msg.textContent = t("eNameJaPair"); return; }
-    const cap = w => w.split(" ").map(x => x.split("-").map(p => (p === p.toUpperCase() || p === p.toLowerCase() ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p)).join("-")).join(" ");
-    const en = `${cap(enG)} ${cap(enF)}`, name = jaF ? `${jaF} ${jaG}` : "", kana = kaF || kaG ? `${kaF} ${kaG}`.trim() : "";
+    const en = `${fmtRoman(enG).trim()} ${fmtRoman(enF).trim()}`, name = jaF ? `${jaF} ${jaG}` : "", kana = kaF || kaG ? `${kaF} ${kaG}`.trim() : "";
     const dept = facultyOnly(v("a-dept"));
     if (!dept) { msg.textContent = t("eDept"); return; }
     if (!isFaculty(dept)) { msg.textContent = t("eDeptFormat"); return; }
@@ -1150,20 +1166,6 @@ document.addEventListener("click", async e => {
   toast(on === "1" ? t("hiddenDone") : t("unhiddenDone"));
   if (on === "1" && table === "professors" && route().v === "prof") go("home"); else render();
 });
-document.addEventListener("click", async e => {
-  const b = e.target.closest("[data-rlist]"); if (!b || !S.ISADMIN) return;
-  const pid = b.dataset.rlist, box = document.querySelector(`[data-rposts="${CSS.escape(pid)}"]`); if (!box) return;
-  box.textContent = t("loading");
-  const [rv, ex] = await Promise.all([
-    sb.from("reviews").select("id,course,body,status,created_at").eq("professor_id", pid).order("created_at", { ascending: false }),
-    sb.from("exams").select("id,course,year,memo,status").eq("professor_id", pid),
-  ]);
-  if (rv.error || ex.error) { box.textContent = t("loadFail"); return; }
-  const item = (table, id, title, text, hidden) => `<article class="adm"><div class="l1"><b>${esc(title)}</b>${hidden ? `<span class="mark">${esc(t("adminHidden"))}</span>` : ""}</div>${text ? `<p class="quote">${esc(text)}</p>` : ""}<div class="row">${adminHide(table, id, null, hidden)}</div></article>`;
-  box.innerHTML = rv.data.map(r => item("reviews", r.id, `${t("kindReview")}　${r.course}　${fmtDate(r.created_at)}`, r.body, r.status === "hidden")).join("")
-    + ex.data.map(x => item("exams", x.id, `${t("kindExam")}　${x.course}　${x.year}`, x.memo, x.status === "hidden")).join("")
-    || `<div class="small sub">${esc(t("adminNoPosts"))}</div>`;
-});
 
 /* 自分が追加した先生・大学の削除（ほかの人のレビューなどがある場合は削除依頼で対応） */
 async function deleteOwn(kind, id, uni) {
@@ -1310,14 +1312,14 @@ function renderAdmin(app) {
       <div class="l1"><b>${esc(K[g.kind] || g.kind)}</b>${tg ? `<a href="${tg.href}">${esc(tg.title)}</a>` : `<span class="sub">${esc(t("targetGone"))}</span>`}<span class="mark ${tg && tg.hidden ? "" : "warn"}">${esc(t("nReports", g.list.length))}</span></div>
       ${tg && tg.text ? `<p class="quote">${esc(tg.text)}</p>` : ""}
       <ul class="small">${g.list.map(r => `<li>${esc(R[r.reason] || r.reason)}${r.note ? `：${esc(str(r.note, 200))}` : ""} <span class="sub">${fmtDate(r.created_at)}</span></li>`).join("")}</ul>
-      ${tg ? `<div class="row"><button class="btn sm ${tg.hidden ? "" : "solid"}" data-hide="${esc(tg.table)}|${esc(g.id)}|${tg.hidden ? 0 : 1}">${esc(tg.hidden ? t("unhide") : t("hide"))}</button></div>` : ""}
+      ${tg && !tg.hidden ? `<div class="small sub">${esc(t("adminRemovalHint"))}</div>` : ""}
     </article>`; }).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noReports"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminRemovals"))} ${d.removals.length}</button></div>
     ${d.removals.length ? d.removals.map(r => `<article class="adm">
       <div class="l1"><b>${esc(str(r.name, 60))}</b><span>${esc(str(r.university, 80))}</span><span class="mark">${esc(RO[r.role] || "")}</span><span class="mark">${esc(SC[r.scope] || "")}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span><span class="sub small">${fmtDate(r.created_at)}</span></div>
       <div class="small"><b>${esc(t("rTarget"))}：</b>${esc(str(r.target, 200))}</div>
-      ${r.professor_id ? `<div class="row"><a class="btn sm" href="#p.${esc(r.professor_id)}">${esc(t("adminOpenTarget"))}</a>${adminHide("professors", r.professor_id, t("adminHidePage"))}<button class="btn sm" data-rlist="${esc(r.professor_id)}">${esc(t("adminShowPosts"))}</button></div><div data-rposts="${esc(r.professor_id)}"></div>` : `<div class="small sub">${esc(t("adminFindHint"))}</div>`}
+      <div class="small sub">${esc(t("adminRemovalHint"))}</div>
       <p class="quote">${esc(str(r.reason, 1000))}</p>
       <div class="small"><b>${esc(t("rEmail"))}：</b><span class="sel">${esc(str(r.email, 120))}</span></div>
       <div class="row"><button class="btn sm ${r.status === "done" ? "" : "solid"}" data-rst="${esc(r.id)}|${r.status === "done" ? "open" : "done"}">${esc(r.status === "done" ? t("markOpen") : t("markDone"))}</button></div>
@@ -1429,6 +1431,19 @@ function setupProfImport() {
   };
 }
 // 「経済学部 経済学科」のような書き方から学部だけを取り出す
+// ローマ字の名前を「先頭だけ大文字・あとは小文字」に整える（スペースやハイフンの後ろも大文字）
+function fmtRoman(v) {
+  return String(v || "").normalize("NFKC").replace(/[’‘`]/g, "'").replace(/[^A-Za-z' .\-]/g, "").replace(/\s+/g, " ").replace(/^ /, "")
+    .split(/([ \-])/).map(w => (w === " " || w === "-" ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())).join("");
+}
+// 入力中に整えるとき、カーソルの位置がずれないようにする
+function liveFormat(el, fn) {
+  const pos = el.selectionStart, before = el.value, after = fn(before);
+  if (after === before) return;
+  const shift = before.length - after.length; el.value = after;
+  try { const p = Math.max(0, (pos || 0) - shift); el.setSelectionRange(p, p); } catch {}
+}
+const toHira = v => String(v || "").normalize("NFKC").replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 // アルファベットの氏名として使えるか（2文字以上で、ローマ字を含む）
 const isRoman = v => [...String(v || "").trim()].length >= 2 && /[A-Za-z]/.test(v) && !/[\u3040-\u30ff\u3400-\u9fff]/.test(v);
 function facultyOnly(d) { const m = String(d || "").match(/^(.*?(学部|学群|学域))/); return m ? m[1].trim() : String(d || "").trim(); }
@@ -1455,7 +1470,7 @@ async function planProfImport(rows) {
     const u = byId.get(uv) || unis.find(x => sameUni(x, [uv]));
     if (!u) { if (uv) unknown.add(uv); continue; }
     const name = ni >= 0 ? clean(r[ni]).replace(/\s+/g, " ").slice(0, 40) : "";
-    const en = ei >= 0 ? clean(r[ei]).replace(/\s+/g, " ").slice(0, 60) : "";
+    const en = ei >= 0 ? fmtRoman(clean(r[ei])).slice(0, 60) : "";
     const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
     const dept = facultyOnly(clean(r[di])).slice(0, 60);
     if (!isRoman(en) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }

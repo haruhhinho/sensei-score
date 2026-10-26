@@ -1268,6 +1268,13 @@ function renderAdmin(app) {
     <p class="small">${esc(t("importLead"))}</p>
     <div class="row"><input type="file" id="imp-file" accept=".csv,text/csv"><label class="agree"><input type="checkbox" id="imp-short">${esc(t("importShort"))}</label></div>
     <div class="row"><button class="btn sm solid" id="imp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="imp-msg"></span></div>
+  </section>
+  <section><div class="tabs"><button aria-selected="true">${esc(t("pimpTitle"))}</button></div>
+    <p class="small">${esc(t("pimpLead"))}</p>
+    <p class="small sub">${esc(t("pimpCols"))}</p>
+    <div class="row"><button class="btn sm" id="pimp-tpl">${esc(t("pimpTemplate"))}</button><input type="file" id="pimp-file" accept=".csv,text/csv"></div>
+    <div class="row"><button class="btn sm solid" id="pimp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="pimp-msg"></span></div>
+    <div class="small" id="pimp-detail"></div>
   </section>`;
   app.querySelectorAll("[data-hide]").forEach(b => (b.onclick = async () => {
     const [table, id, on] = b.dataset.hide.split("|");
@@ -1285,7 +1292,7 @@ function renderAdmin(app) {
     if (r2.error) return toast(t("reportFail"));
     invalidate("admin", "profs", "prof"); toast(dcs === "ok" ? t("approved") : t("rejectedT")); render();
   }));
-  setupImport();
+  setupImport(); setupProfImport();
 }
 /* 文部科学省の学校コードCSVから大学を取り込む */
 function setupImport() {
@@ -1309,6 +1316,83 @@ function setupImport() {
     }
     msg.textContent = t("importDone", list.length); invalidate("unis"); render();
   };
+}
+/* 先生の一覧（CSV）を大学ごとに一括で追加する */
+async function readCsvFile(file) {
+  const buf = await file.arrayBuffer();
+  let text = new TextDecoder("utf-8").decode(buf);
+  if (text.includes("\uFFFD")) text = new TextDecoder("shift_jis").decode(buf);
+  return parseCsv(text.replace(/^\uFEFF/, ""));
+}
+function setupProfImport() {
+  const fi = $("#pimp-file"), run = $("#pimp-run"), msg = $("#pimp-msg"), det = $("#pimp-detail");
+  let plan = [];
+  $("#pimp-tpl").onclick = () => {
+    const csv = "\uFEFF大学,氏名,ふりがな,英語表記,学部・学科\n東都大学,山田 太郎,やまだ たろう,Taro Yamada,経済学部\n";
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "teachers-template.csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  fi.onchange = async () => {
+    const file = fi.files[0]; run.disabled = true; plan = []; det.innerHTML = ""; if (!file) return;
+    msg.classList.remove("ng"); msg.textContent = t("loading");
+    try {
+      const res = await planProfImport(await readCsvFile(file));
+      if (res.error) { msg.textContent = t(res.error); msg.classList.add("ng"); return; }
+      plan = res.add;
+      msg.textContent = t("pimpParsed", res.add.length);
+      const ex = list => list.slice(0, 5).map(esc).join("、") + (list.length > 5 ? "…" : "");
+      det.innerHTML = [
+        res.unknown.length ? `<div>${esc(t("pimpUnknown", res.unknown.length))}　<span class="sub">${ex(res.unknown)}</span></div>` : "",
+        res.dup ? `<div>${esc(t("pimpDup", res.dup))}</div>` : "",
+        res.bad.length ? `<div>${esc(t("pimpBad", res.bad.length))}　<span class="sub">${ex(res.bad)}</span></div>` : "",
+      ].join("");
+      run.disabled = !plan.length;
+    } catch (e) { console.error(e); msg.textContent = t("reportFail"); msg.classList.add("ng"); }
+  };
+  run.onclick = async () => {
+    run.disabled = true;
+    for (let i = 0; i < plan.length; i += 200) {
+      msg.textContent = t("pimpSaving", Math.min(i + 200, plan.length), plan.length);
+      const { error } = await sb.from("professors").insert(plan.slice(i, i + 200).map(x => ({ ...x, created_by: S.MYID })));
+      if (error) { msg.textContent = t("reportFail") + " " + error.message; msg.classList.add("ng"); return; }
+    }
+    msg.textContent = t("pimpDone", plan.length); det.innerHTML = ""; fi.value = "";
+    invalidate("profs", "prof"); plan = [];
+  };
+}
+async function planProfImport(rows) {
+  const clean = v => String(v || "").trim();
+  let hi = -1;
+  for (let i = 0; i < Math.min(10, rows.length); i++) if (rows[i].some(c => /氏名|名前|教員名|^name$/i.test(clean(c)))) { hi = i; break; }
+  if (hi < 0) return { error: "pimpNoHeader" };
+  const head = rows[hi].map(clean);
+  const find = (re, not) => head.findIndex(h => re.test(h) && !(not && not.test(h)));
+  const ui = find(/大学|学校|university|school/i, /学部|学科/);
+  const ki = find(/ふりがな|フリガナ|よみ|ヨミ|かな|カナ|kana/i);
+  const ei = find(/英|english|roman|ローマ字/i);
+  const ni = find(/氏名|名前|教員名|^name$/i, /ふりがな|フリガナ|よみ|ヨミ|かな|カナ|kana|英|english|roman|ローマ字/i);
+  const di = find(/学部|学科|研究科|所属|部局|dept|department|faculty/i);
+  if (ui < 0 || (ni < 0 && ei < 0) || di < 0) return { error: "pimpNoHeader" };
+  const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u]));
+  const existing = {}, add = [], unknown = new Set(), bad = []; let dup = 0;
+  for (const r of rows.slice(hi + 1)) {
+    if (!r.some(c => clean(c))) continue;
+    const uv = clean(r[ui]);
+    const u = byId.get(uv) || unis.find(x => sameUni(x, [uv]));
+    if (!u) { if (uv) unknown.add(uv); continue; }
+    const name = ni >= 0 ? clean(r[ni]).replace(/\s+/g, " ").slice(0, 40) : "";
+    const en = ei >= 0 ? clean(r[ei]).replace(/\s+/g, " ").slice(0, 60) : "";
+    const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
+    const dept = clean(r[di]).slice(0, 60);
+    if (([...name].length < 2 && [...en].length < 2) || !dept) { bad.push(name || en || uv); continue; }
+    if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }
+    const names = [name, en].filter(Boolean);
+    if (existing[u.id].some(p => sameProf(p, names))) { dup++; continue; }
+    const row = { university_id: u.id, name: name || null, name_en: en || null, kana: kana || null, dept };
+    add.push(row);
+    existing[u.id].push({ name, en, kana });
+  }
+  return { add, unknown: [...unknown], bad, dup };
 }
 function parseCsv(text) {
   const out = []; let row = [], cell = "", q = false;

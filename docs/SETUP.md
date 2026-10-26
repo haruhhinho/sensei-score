@@ -17,7 +17,7 @@
 ## 2. Supabase：ログインの設定
 
 1. **Authentication → URL Configuration**
-   - Site URL：公開後のURL（例 `https://sensei-score.pages.dev`。独自ドメインを買ったらそちら）
+   - Site URL：公開後のURL（例 `https://sensei-score.○○.workers.dev`。独自ドメインを買ったらそちら）
    - Redirect URLs：上と同じURL、テスト用に `http://localhost:5173` も追加
 2. **Authentication → Providers → Email**：有効のまま（パスワードではなく、メールに届くリンクでログインします）
 3. **Google でのログイン**
@@ -29,20 +29,29 @@
 4. **メール送信について**：Supabase 標準のメール送信は1時間に数通しか送れません。公開前に
    **Authentication → Emails → SMTP Settings** で外部の送信サービス（Resend など。無料枠あり）を設定してください。
 
-## 3. Cloudflare Pages：サイトを公開する
+## 3. Cloudflare：サイトを公開する
 
-1. Cloudflare ダッシュボード →「Workers & Pages」→「作成」→「Pages」→「Git に接続」
-2. GitHub の `haruhhinho/sensei-score` を選ぶ
-3. ビルドの設定
-   - フレームワーク プリセット：なし（None）
-   - ビルド コマンド：`npm run build`
-   - ビルド出力ディレクトリ：`dist`
-4. **環境変数**（「設定 → 変数とシークレット」。本番環境に追加）
+このリポジトリは **Cloudflare Workers**（現在の標準）でも **Cloudflare Pages** でも公開できます。
+
+### Workers の場合（「Deploy command：npx wrangler deploy」と表示される画面）
+
+1. Cloudflare ダッシュボード →「Workers & Pages」→「作成」→「Git リポジトリをインポート」→ `haruhhinho/sensei-score`
+2. 設定
+   - Worker 名（プロジェクト名）：`sensei-score`（`wrangler.jsonc` の `"name"` と同じにする）
+   - Build command：`npm run build`
+   - Deploy command：`npx wrangler deploy`
+   - 出力ディレクトリの欄はありません（`wrangler.jsonc` で `dist` を指定済み）
+3. **Build variables**（ビルドの設定の中。画面を作るときに使う公開してよい値）
+
+   | 名前 | 値 |
+   |---|---|
+   | `VITE_SUPABASE_URL` | Project URL |
+   | `VITE_SUPABASE_ANON_KEY` | anon / publishable キー |
+
+4. **Variables and Secrets**（Worker の「設定」タブ。サーバー処理で使う値）
 
    | 名前 | 値 | 種類 |
    |---|---|---|
-   | `VITE_SUPABASE_URL` | Project URL | テキスト |
-   | `VITE_SUPABASE_ANON_KEY` | anon / publishable キー | テキスト |
    | `SUPABASE_URL` | Project URL | テキスト |
    | `SUPABASE_ANON_KEY` | anon / publishable キー | テキスト |
    | `SUPABASE_SERVICE_ROLE_KEY` | service_role / secret キー | **シークレット** |
@@ -50,8 +59,15 @@
    | `AI_MODEL_FAST`（任意） | 例 `claude-haiku-5-5` | テキスト |
    | `AI_MODEL_DEFAULT`（任意） | 例 `claude-sonnet-5-5` | テキスト |
 
-5. 保存したら「デプロイ」→「再試行（再デプロイ）」。`VITE_` で始まる値はビルド時に使われるので、変更したら必ず再デプロイします。
-6. 表示された `https://○○.pages.dev` を開いて動作を確認。このURLを手順2の Site URL / Redirect URLs に入れます。
+5. 「デプロイ」タブから再デプロイ。`VITE_` の値を変えたら必ず再デプロイします。
+6. 表示された `https://sensei-score.○○.workers.dev` を開いて確認し、このURLを手順2の Site URL / Redirect URLs に入れます。
+
+### Pages の場合
+
+1. 「Workers & Pages」→「作成」→ 画面下の「Pages」→「Git に接続」→ `haruhhinho/sensei-score`
+2. フレームワーク プリセット：なし／ビルド コマンド：`npm run build`／ビルド出力ディレクトリ：`dist`
+3. 「設定 → 変数とシークレット」に、上の表の値をすべて（`VITE_` の2つも含めて）入れる
+4. 再デプロイし、`https://○○.pages.dev` を手順2の Site URL / Redirect URLs に入れる
 
 ## 4. 自分を管理者にする
 
@@ -79,7 +95,7 @@
 ## 7. 広告（AdSense）を入れるとき
 
 1. 独自ドメインを購入（Cloudflare Registrar なら原価、.com で年1,500円前後）
-2. Cloudflare Pages の「カスタムドメイン」で接続し、手順2の Site URL / Redirect URLs と Google の設定を新しいドメインに更新
+2. Cloudflare の Worker（または Pages）の「ドメイン」設定で接続し、手順2の Site URL / Redirect URLs と Google の設定を新しいドメインに更新
 3. ある程度レビューが集まってから AdSense に申請。審査に通ったら広告コードの追加をご相談ください（利用者情報の外部送信ページの更新も必要です）。
 
 ---

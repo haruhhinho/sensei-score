@@ -1432,9 +1432,10 @@ function setupProfImport() {
 }
 // 「経済学部 経済学科」のような書き方から学部だけを取り出す
 // ローマ字の名前を「先頭だけ大文字・あとは小文字」に整える（スペースやハイフンの後ろも大文字）
-function fmtRoman(v) {
+// keepMixed：CSVの取り込みでは McEown のような大学公式の大文字・小文字の混在をそのまま残す
+function fmtRoman(v, keepMixed) {
   return String(v || "").normalize("NFKC").replace(/[’‘`]/g, "'").replace(/[^A-Za-z' .\-]/g, "").replace(/\s+/g, " ").replace(/^ /, "")
-    .split(/([ \-])/).map(w => (w === " " || w === "-" ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())).join("");
+    .split(/([ \-])/).map(w => (w === " " || w === "-" ? w : keepMixed && /[a-z]/.test(w.slice(1)) && /[A-Z]/.test(w.slice(1)) && /^[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())).join("");
 }
 // 入力中に整えるとき、カーソルの位置がずれないようにする
 function liveFormat(el, fn) {
@@ -1470,7 +1471,7 @@ async function planProfImport(rows) {
     const u = byId.get(uv) || unis.find(x => sameUni(x, [uv]));
     if (!u) { if (uv) unknown.add(uv); continue; }
     const name = ni >= 0 ? clean(r[ni]).replace(/\s+/g, " ").slice(0, 40) : "";
-    const en = ei >= 0 ? fmtRoman(clean(r[ei])).slice(0, 60) : "";
+    const en = ei >= 0 ? fmtRoman(clean(r[ei]), true).slice(0, 60) : "";
     const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
     const dept = facultyOnly(clean(r[di])).slice(0, 60);
     if (!isRoman(en) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }

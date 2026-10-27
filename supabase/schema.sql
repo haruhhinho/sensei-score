@@ -76,6 +76,8 @@ create table if not exists public.professors (
 );
 create index if not exists professors_uni_idx on public.professors(university_id);
 alter table public.professors enable row level security;
+alter table public.professors drop constraint if exists professors_name_en_required;
+alter table public.professors add constraint professors_name_en_required check (name_en is not null and btrim(name_en) <> '');
 drop policy if exists prof_read on public.professors;
 drop policy if exists prof_insert on public.professors;
 drop policy if exists prof_admin on public.professors;

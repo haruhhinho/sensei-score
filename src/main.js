@@ -55,12 +55,42 @@ function route() {
   return { v: "home" };
 }
 function go(h) { if (location.hash === "#" + h) render(); else location.hash = h; }
+/* 戻る・進むで、前の画面で見ていた位置に戻す
+   履歴の1件ごとに印（k）を付け、その画面でのスクロール位置を覚えておく */
+try { history.scrollRestoration = "manual"; } catch {}
+const SCR = (() => { try { return JSON.parse(sessionStorage.getItem("kohyo.scr") || "{}"); } catch { return {}; } })();
+const histKey = () => {
+  if (history.state && history.state.k) return history.state.k;
+  const k = Math.random().toString(36).slice(2, 10);
+  try { history.replaceState({ ...(history.state || {}), k }, ""); } catch {}
+  return k;
+};
+let curKey = histKey(), wantY = SCR[curKey] || null, wantUntil = Date.now() + 1600;
+if (wantY) { [300, 800, 1400].forEach(ms => setTimeout(applyScroll, ms)); setTimeout(() => applyScroll(true), 2000); wantUntil = Date.now() + 2200; }
+const saveScr = () => { try { sessionStorage.setItem("kohyo.scr", JSON.stringify(SCR)); } catch {} };
+window.addEventListener("scroll", () => {
+  if (wantY != null) return; // 位置を戻している途中は、上書きしない
+  SCR[curKey] = Math.round(scrollY); clearTimeout(saveScr.t); saveScr.t = setTimeout(saveScr, 300);
+}, { passive: true });
+["wheel", "touchstart", "keydown"].forEach(e => window.addEventListener(e, () => (wantY = null), { passive: true }));
+// 描き直すたびに、戻したい位置まで届いたかを確かめる（データが後から届いて画面が伸びる場合のため）
+// （ブラウザが後から先頭へ戻すことがあるので、しばらくのあいだ何度か位置を合わせ直す）
+function applyScroll(last) {
+  if (wantY == null) return;
+  window.scrollTo(0, wantY);
+  if (last || Date.now() > wantUntil) { wantY = null; SCR[curKey] = Math.round(scrollY); }
+}
 window.addEventListener("hashchange", () => {
   const nv = route().v;
   if (nv === "admin") invalidate("admin");
   if (nv === "me") invalidate("me", "myclaims");
   S.animNext = true; S.form = null; if (!S.keepPending) S.pendingTeacher = ""; S.keepPending = false;
-  render(); window.scrollTo(0, 0);
+  const back = !!(history.state && history.state.k);
+  curKey = histKey();
+  wantY = back && SCR[curKey] ? SCR[curKey] : null; wantUntil = Date.now() + 1600;
+  if (back && wantY) S.animNext = false;
+  render();
+  if (wantY == null) window.scrollTo(0, 0); else [50, 150, 400, 900].forEach(ms => setTimeout(applyScroll, ms)), setTimeout(() => applyScroll(true), 1500);
 });
 
 /* ===================================================================
@@ -122,6 +152,7 @@ function render() {
     dept: (a, id) => renderDept(a, id, r.q), find: (a, id) => renderResults(a, id, r.q), unis: (a, id) => renderUniResults(a, id, r.q),
   }[r.v];
   fn(app, r.id);
+  applyScroll();
 }
 // データが届いたときの描き直し（入力中の画面は書き換えない）
 function rerenderSafe() {
@@ -1215,7 +1246,7 @@ async function loadMe() {
   const q = (tb, cols) => sb.from(tb).select(cols).eq(tb === "professors" || tb === "universities" ? "created_by" : "user_id", S.MYID).order("created_at", { ascending: false });
   const [rv, sc, ex, pf, un, rp, rr] = await Promise.all([
     q("reviews", "id,professor_id,course,quality,status,created_at"), q("school_ratings", "id,university_id,status,created_at,rep,loc,car,fac,net,food,club,life,safe,happy"),
-    q("exams", "id,professor_id,course,year,status,created_at"), q("professors", "id,name,name_en,created_at"), q("universities", "id,name,name_en,created_at"),
+    q("exams", "id,professor_id,course,year,status,created_at"), q("professors", "id,name,name_en,university_id,created_at"), q("universities", "id,name,name_en,created_at"),
     q("reports", "id,created_at"), q("removal_requests", "id,name,target,scope,status,created_at"),
   ]);
   for (const x of [rv, sc, ex, pf, un, rp, rr]) if (x.error) throw x.error;
@@ -1233,6 +1264,8 @@ function renderMe(app) {
   const ST = { pending: t("stPending"), approved: t("stApproved"), rejected: t("stRejected") };
   const none = `<p class="sub small">${esc(t("meNone"))}</p>`;
   const sec = (title, n, body) => `<section class="mesec"><h2>${esc(title)} <span class="sub">${n}</span></h2>${body}</section>`;
+  // 一覧は最初の5件だけ見せ、残りは「もっと見る」で開く
+  const ML = 5, mlist = items => `<ul class="melist">${items.map((h, i) => (i < ML ? h : h.replace(/^<li/, '<li hidden data-more'))).join("")}</ul>${items.length > ML ? `<button class="btn sm memore" type="button" data-n="${items.length - ML}">${esc(t("showMore", items.length - ML))}</button>` : ""}`;
   const pn = id => { const x = d.names[id]; return x ? pName(x) : "—"; };
   const hiddenMark = r => (r.status === "hidden" ? `・<span class="sub">${esc(t("adminHidden"))}</span>` : "");
   const prov = S.ME && S.ME.provider === "google" ? t("meLoginGoogle") : t("meLoginEmail");
@@ -1244,14 +1277,21 @@ function renderMe(app) {
     <dt>${esc(t("meLang"))}</dt><dd>${S.LANG === "en" ? "English" : "日本語"}</dd>
     ${c ? `<dt>${esc(t("meClaim"))}</dt><dd>${esc(ST[c.status] || "")}</dd>` : ""}
   </dl>
-  ${sec(t("meReviews"), d.rv.length, d.rv.length ? `<ul class="melist">${d.rv.map(r => `<li><a href="#p.${esc(r.professor_id)}">${esc(pn(r.professor_id))}</a><span class="sub small">${esc(r.course)}・${Number(r.quality).toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="review|${esc(r.id)}">${esc(t("del"))}</button></li>`).join("")}</ul>` : none)}
-  ${sec(t("meSchools"), d.sc.length, d.sc.length ? `<ul class="melist">${d.sc.map(r => { const u = uniById(r.university_id); const avg = SCATS.reduce((a, [k]) => a + r[k], 0) / SCATS.length; return `<li><a href="#school.${esc(r.university_id)}">${esc(u ? uName(u) : "—")}</a><span class="sub small">${avg.toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="school|${esc(r.id)}">${esc(t("del"))}</button></li>`; }).join("")}</ul>` : none)}
-  ${sec(t("meExams"), d.ex.length, d.ex.length ? `<ul class="melist">${d.ex.map(x => `<li><a href="#p.${esc(x.professor_id)}">${esc(pn(x.professor_id))}</a><span class="sub small">${esc(x.course)}・${x.year}${hiddenMark(x)}</span><button class="del" data-mdel="exam|${esc(x.id)}">${esc(t("del"))}</button></li>`).join("")}</ul>` : none)}
-  ${sec(t("meAdded"), d.pf.length + d.un.length, d.pf.length + d.un.length ? `<ul class="melist">${d.un.map(u => `<li><a href="#u.${esc(u.id)}">${esc(S.LANG === "en" ? u.name_en || u.name : u.name)}</a><span class="sub small">${esc(t("uni"))}</span><button class="del" data-odel="uni|${esc(u.id)}">${esc(t("del"))}</button></li>`).join("")}${d.pf.map(p => `<li><a href="#p.${esc(p.id)}">${esc(S.LANG === "en" ? p.name_en || p.name : p.name || p.name_en)}</a><span class="sub small">${esc(t("prof"))}</span><button class="del" data-odel="prof|${esc(p.id)}">${esc(t("del"))}</button></li>`).join("")}</ul>` : none)}
+  ${sec(t("meReviews"), d.rv.length, d.rv.length ? mlist(d.rv.map(r => `<li><a href="#p.${esc(r.professor_id)}">${esc(pn(r.professor_id))}</a><span class="sub small">${esc(r.course)}・${Number(r.quality).toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="review|${esc(r.id)}">${esc(t("del"))}</button></li>`)) : none)}
+  ${sec(t("meSchools"), d.sc.length, d.sc.length ? mlist(d.sc.map(r => { const u = uniById(r.university_id); const avg = SCATS.reduce((a, [k]) => a + r[k], 0) / SCATS.length; return `<li><a href="#school.${esc(r.university_id)}">${esc(u ? uName(u) : "—")}</a><span class="sub small">${avg.toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="school|${esc(r.id)}">${esc(t("del"))}</button></li>`; })) : none)}
+  ${sec(t("meExams"), d.ex.length, d.ex.length ? mlist(d.ex.map(x => `<li><a href="#p.${esc(x.professor_id)}">${esc(pn(x.professor_id))}</a><span class="sub small">${esc(x.course)}・${x.year}${hiddenMark(x)}</span><button class="del" data-mdel="exam|${esc(x.id)}">${esc(t("del"))}</button></li>`)) : none)}
+  ${sec(t("meAddedUnis"), d.un.length, d.un.length ? mlist(d.un.map(u => `<li><a href="#u.${esc(u.id)}">${esc(S.LANG === "en" ? u.name_en || u.name : u.name)}</a><button class="del" data-odel="uni|${esc(u.id)}">${esc(t("del"))}</button></li>`)) : none)}
+  ${sec(t("meAddedProfs"), d.pf.length, d.pf.length ? mlist(d.pf.map(p => `<li><a href="#p.${esc(p.id)}">${esc(S.LANG === "en" ? p.name_en || p.name : p.name || p.name_en)}</a><span class="sub small">${esc(uniById(p.university_id) ? uName(uniById(p.university_id)) : "")}</span><button class="del" data-odel="prof|${esc(p.id)}">${esc(t("del"))}</button></li>`)) : none)}
   ${sec(t("meRequests"), d.nRep + d.nRem, `<p class="small">${esc(t("meReported", d.nRep))}　${esc(t("meRemovals", d.nRem))}</p>${d.rems.length ? `<ul class="melist">${d.rems.map(r => `<li><span>${esc(str(r.target, 60))}</span><span class="sub small">${esc((t("scopes") || {})[r.scope] || "")}・${fmtDate(r.created_at)}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span></li>`).join("")}</ul>` : ""}`)}
   <section class="mesec"><div class="row"><button class="btn" id="me-out">${esc(t("signOut"))}</button></div></section>
   <section class="mesec danger"><h2>${esc(t("leaveTitle"))}</h2><p class="small">${esc(t("leaveLead"))}</p><div><button class="btn" id="me-leave">${esc(t("leave"))}</button></div></section>`;
   $("#me-name").textContent = (S.ME && S.ME.name) || t("signedIn");
+  app.querySelectorAll(".memore").forEach(b => (b.onclick = () => {
+    const ul = b.previousElementSibling, rest = [...ul.querySelectorAll("[data-more]")];
+    const open = rest.some(li => li.hidden);
+    rest.forEach(li => (li.hidden = !open));
+    b.textContent = open ? t("showLess") : t("showMore", rest.length);
+  }));
   app.querySelectorAll("[data-mdel]").forEach(b => (b.onclick = async () => {
     const [kind, id] = b.dataset.mdel.split("|");
     if (!(await askDelete(kind === "review" ? t("cfReview") : kind === "school" ? t("cfSchool") : t("cfExam")))) return;
@@ -1329,11 +1369,16 @@ function renderAdmin(app) {
   const pend = d.claims.filter(c => c.status === "pending").length;
   app.innerHTML = `${crumb(["#home", t("top")], [null, t("adminTitle")])}
   <section class="title"><h1>${esc(t("adminTitle"))}</h1></section>
+  <section><div class="tabs"><button aria-selected="true">${esc(t("adminSearch"))}</button></div>
+    <p class="small">${esc(t("adminSearchLead"))}</p>
+    <input id="adm-q" class="line" type="search" autocomplete="off" placeholder="${esc(t("adminSearchPh"))}" style="font-size:16px;border-bottom-width:1px">
+    <div class="small" id="adm-res"></div>
+  </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminClaims"))} ${pend}</button></div>
     ${d.claims.length ? d.claims.map(c => { const u = uniById(c.university_id), n = d.names[c.professor_id]; return `<article class="adm">
       <div class="l1"><b><a href="#p.${esc(c.professor_id)}">${esc(n ? pName(n) : "—")}</a></b><span>${esc(u ? uName(u) : "")}</span><span class="mark ${c.status === "approved" ? "ok" : c.status === "pending" ? "warn" : ""}">${esc(ST[c.status] || "")}</span><span class="sub small">${fmtDate(c.created_at)}</span></div>
       <div class="small"><b>${esc(t("cEmail"))}：</b><span class="sel">${esc(str(c.email, 120))}</span>${c.title ? `　<b>${esc(t("cTitle"))}：</b>${esc(str(c.title, 40))}` : ""}</div>
-      ${c.status === "pending" ? `<div class="row"><button class="btn sm solid" data-cl="ok|${esc(c.id)}">${esc(t("approve"))}</button><button class="btn sm" data-cl="ng|${esc(c.id)}">${esc(t("reject"))}</button></div>` : ""}
+      <div class="row">${c.status !== "approved" ? `<button class="btn sm solid" data-cl="ok|${esc(c.id)}">${esc(t("approve"))}</button>` : ""}${c.status !== "rejected" ? `<button class="btn sm" data-cl="ng|${esc(c.id)}">${esc(c.status === "approved" ? t("unapprove") : t("reject"))}</button>` : ""}</div>
     </article>`; }).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noClaims"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminReports"))} ${reps.length}</button></div>
@@ -1385,6 +1430,8 @@ function renderAdmin(app) {
     const ok = dcs === "ok" ? await askConfirm({ title: t("cfApprove"), body: t("cfApproveBody"), ok: t("cfApproveOk"), danger: false }) : await askConfirm({ title: t("cfReject"), body: "", ok: t("cfRejectOk") });
     if (!ok) return;
     if (dcs === "ok") { const r = await sb.from("faculty_verified").upsert({ professor_id: c.professor_id, user_id: c.user_id }); if (r.error) return toast(t("reportFail")); }
+    // 承認を取り消すときは、本人確認済みの印も外す
+    else if (c.status === "approved") { const r = await sb.from("faculty_verified").delete().eq("professor_id", c.professor_id).eq("user_id", c.user_id); if (r.error) return toast(t("reportFail")); }
     const r2 = await sb.from("faculty_claims").update({ status: dcs === "ok" ? "approved" : "rejected" }).eq("id", id);
     if (r2.error) return toast(t("reportFail"));
     invalidate("admin", "profs", "prof"); toast(dcs === "ok" ? t("approved") : t("rejectedT")); render();
@@ -1395,7 +1442,27 @@ function renderAdmin(app) {
     if (error) return toast(t("reportFail"));
     invalidate("admin"); render();
   }));
-  setupImport(); setupProfImport(); setupUniEnImport();
+  setupImport(); setupProfImport(); setupUniEnImport(); setupAdminSearch();
+}
+/* 管理者：全大学の先生を名前（日本語・ふりがな・英語）で探す。非表示の先生も出す */
+function setupAdminSearch() {
+  const q = $("#adm-q"), out = $("#adm-res"); let seq = 0;
+  q.oninput = () => {
+    clearTimeout(q.t);
+    q.t = setTimeout(async () => {
+      const v = q.value.normalize("NFKC").trim().replace(/[%_,()*\\]/g, "");
+      if ([...v].length < 2) { out.innerHTML = ""; return; }
+      const my = ++seq; out.textContent = t("loading");
+      // 「山田 太郎」「Taro Yamada」「Yamada Taro」どれでも当たるように、空白を%にする
+      const pats = [...new Set([v, v.split(/\s+/).reverse().join(" ")])].map(x => "%" + x.replace(/\s+/g, "%") + "%");
+      const ors = pats.flatMap(pt => [`name.ilike.${pt}`, `name_en.ilike.${pt}`, `kana.ilike.${pt}`]).join(",");
+      const { data, error } = await sb.from("professors").select("id,name,name_en,kana,dept,university_id,status").or(ors).order("name_en").limit(100);
+      if (my !== seq) return;
+      if (error) { out.textContent = t("reportFail"); return; }
+      if (!data.length) { out.textContent = t("adminSearchNone"); return; }
+      out.innerHTML = `<div class="sub" style="margin:8px 0">${esc(t("adminSearchN", data.length))}</div><ul class="melist">${data.map(p => `<li><a href="#p.${esc(p.id)}">${esc(pName({ name: p.name || "", en: p.name_en || "" }))}</a><span class="sub small">${esc([p.name && p.name_en ? (S.LANG === "en" ? p.name : p.name_en) : "", uName(uniById(p.university_id)), dName(p.dept)].filter(Boolean).join("・"))}${p.status === "hidden" ? `・${esc(t("adminHidden"))}` : ""}</span></li>`).join("")}</ul>`;
+    }, 250);
+  };
 }
 /* 大学の英語名をCSV（大学名または学校コード, 英語名）でまとめて登録する */
 function setupUniEnImport() {

@@ -1,6 +1,7 @@
 // 共通の小さな道具・状態・データの読み込み
 import { createClient } from "@supabase/supabase-js";
 import { T, PREFS } from "./i18n.js";
+import { deptEn } from "./dept.js";
 
 export const SB_URL = import.meta.env.VITE_SUPABASE_URL || "";
 export const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -43,7 +44,7 @@ export const uName = u => (u ? (S.LANG === "en" ? u.en || u.name : u.name) : "")
 export const uPref = u => (u ? (S.LANG === "en" ? prefEn(u.pref) : u.pref) : "");
 export const pName = p => (S.LANG === "en" ? p.en || p.name : p.name || p.en);
 export const pAlt = p => { const a = S.LANG === "en" ? p.name : p.en; return a && a !== pName(p) ? a : ""; };
-export const dName = d => d || "";
+export const dName = d => (S.LANG === "en" ? deptEn(d) : d || "");
 export const cName = c => c || "";
 
 /* ---------- 名前の照合（日本語・かな・ローマ字、姓名どちらの順でも同じ人） ---------- */

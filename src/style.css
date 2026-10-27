@@ -7,8 +7,8 @@ body{margin:0}
 :root{
   --paper:#FFFFFF; --ink:#000000; --sub:#666666; --rule:#DDDDDD; --faint:#F2F2F2;
   --good:#00B140; --mid:#FFA800; --bad:#FF1F3D;
-  --f-sans:"Barlow Semi Condensed","Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
-  --f-serif:"Barlow Semi Condensed","Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-sans:"Barlow","Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  --f-serif:"Barlow","Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --paper:#0A0A0A; --ink:#FFFFFF; --sub:#A0A0A0; --rule:#333333; --faint:#1A1A1A;
@@ -107,7 +107,7 @@ body.at-home #brand{visibility:hidden}
 .rrow:first-child{border-top:0}
 a.rrow:hover{background:var(--faint)}
 .rhd{font-size:12px;color:var(--sub);padding-block:8px}
-.rrow .alt2{display:block;font-size:12px;color:var(--sub);font-weight:500}
+.rrow .alt2{display:block;font-size:14px;color:var(--sub);font-weight:500}
 .rrow .nm{font-family:var(--f-serif);font-weight:800;font-size:17px}
 .rrow .num{text-align:right}
 .rrow .mob{display:none;font-size:12px;color:var(--sub);font-family:var(--f-sans);font-weight:500}
@@ -214,8 +214,8 @@ input[type=file]{font-size:14px;max-width:100%}
 .srev .cats b{font-size:18px;line-height:1.3}
 @media (max-width:520px){.srev .cats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .sum{display:flex;flex-direction:column;gap:10px}
-.sum ol{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:6px}
-.sum .meta{font-size:12px;color:var(--sub)}
+.sum ol{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:10px;font-size:17px;line-height:1.8}
+.sum .meta{font-size:13px;color:var(--sub)}
 .err{color:var(--bad);font-size:13px}
 
 .revhd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
@@ -383,7 +383,7 @@ footer{margin:32px -16px 0;padding:0 16px calc(24px + env(safe-area-inset-bottom
 .dd li.additem a{font-weight:700;justify-content:flex-start;background:var(--faint)}
 
 /* トップページでは、フッターが画面の下端から始まるように本文の高さを確保する（色の帯だけが下に見える） */
-body.at-home main{min-height:calc(100svh - var(--hdr, 64px) - 64px)}
+body.at-home main{min-height:calc(100vh - var(--hdr, 64px) + 8px);min-height:calc(100lvh - var(--hdr, 64px) + 8px)}
 /* 入力の型に合わないときのエラー（欄のすぐ下） */
 input.bad,select.bad{border-bottom-color:var(--bad)!important;border-bottom-width:2px!important}
 .ferr{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;color:var(--bad);font-size:13px;line-height:1.6}

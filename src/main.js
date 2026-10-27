@@ -42,6 +42,7 @@ function statsOf(rs) {
 /* ===================================================================
    ルーティング（#p.<id> など）
    =================================================================== */
+window.addEventListener("resize", () => { const hd = document.querySelector("header.top"); if (hd) document.documentElement.style.setProperty("--hdr", hd.offsetHeight + "px"); });
 function route() {
   const h = decodeURIComponent(location.hash.slice(1)), dot = h.indexOf(".");
   const v = dot < 0 ? h : h.slice(0, dot), id = dot < 0 ? "" : h.slice(dot + 1);
@@ -100,6 +101,7 @@ function render() {
   if (!configured) { app.innerHTML = `<div class="notice"><b>Supabase is not configured.</b> Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</div>`; return; }
   if (S.animNext) { S.animNext = false; app.classList.add("anim"); clearTimeout(render.at); render.at = setTimeout(() => app.classList.remove("anim"), 1400); }
   document.body.classList.toggle("at-home", r.v === "home" || r.v === "uni");
+  const hd = document.querySelector("header.top"); if (hd) document.documentElement.style.setProperty("--hdr", hd.offsetHeight + "px");
   $("#adminlink").hidden = !S.ISADMIN;
   S.ctxUni = null; S.ctxProf = "";
   if (r.v === "uni") rememberUni(r.id);
@@ -548,7 +550,6 @@ function renderRate(app, pid) {
     if (!course) return setMsg(t("eCourse"), 1);
     if (!f.q) return setMsg(t("eQ"), 1);
     if (!f.d) return setMsg(t("eD"), 1);
-    if (len > 0 && len < 15) return setMsg(t("eShort"), 1);
     if (len > 350) return setMsg(t("eLong"), 1);
     S.busy = true; const btn = $("#f-sub"); btn.disabled = true; setMsg(len ? t("aiChecking") : t("posting"));
     try {
@@ -622,7 +623,7 @@ function renderAdd(app, uid) {
       <div class="q"><label class="lb" for="a-dept">${esc(t("dept"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
         <input id="a-dept" type="text" maxlength="40" value="${esc(S.addDept)}" placeholder="${esc(t("facPh"))}" list="a-deptlist" autocomplete="off">
         <datalist id="a-deptlist">${(() => { const l = profsOf(uid); return Array.isArray(l) ? [...new Set(l.map(p => p.dept).filter(Boolean))].sort().map(d => `<option value="${esc(d)}"></option>`).join("") : ""; })()}</datalist>
-        <span class="small sub">${esc(t("facHintSuggest"))}</span></div></div>
+        <span class="small sub">${esc(t("deptRuleHint"))}</span></div></div>
     </div>
     <div class="row"><button class="btn solid" type="submit" id="a-sub">${esc(t("addBtn"))}</button><a class="btn" href="#u.${esc(uid)}">${esc(t("cancel"))}</a><span class="msg" id="a-msg"></span></div>
   </form>`;
@@ -630,17 +631,26 @@ function renderAdd(app, uid) {
   // ローマ字は入力したそばから「先頭だけ大文字・あとは小文字」に整える。読みはひらがなにそろえる
   ["a-enf", "a-eng"].forEach(id => { const el = $("#" + id); el.addEventListener("input", () => liveFormat(el, fmtRoman)); el.addEventListener("blur", () => (el.value = fmtRoman(el.value).trim())); });
   ["a-kaf", "a-kag"].forEach(id => { const el = $("#" + id); el.addEventListener("blur", () => (el.value = toHira(el.value).trim())); });
+  const knownDepts = () => { const l = profsOf(uid); return Array.isArray(l) ? [...new Set(l.map(p => p.dept).filter(Boolean))] : []; };
+  // 学部欄は、欄を離れたときにも型を確かめる（「経済」→「経済学部にする」）
+  $("#a-dept").addEventListener("blur", e => { const el = e.currentTarget; if (!el.isConnected || !el.value.trim()) return; const r = checkDept(el.value, u, knownDepts()); if (r.err) fieldErr(el, t(r.err), r.fix, true); else el.value = r.value; });
   const v = id => $("#" + id).value.trim().replace(/[\s　]+/g, " ");
   $("#af").onsubmit = async e => {
     e.preventDefault(); if (S.busy) return;
     const msg = $("#a-msg"); msg.classList.add("ng");
     const enF = v("a-enf"), enG = v("a-eng"), jaF = v("a-jaf"), jaG = v("a-jag"), kaF = v("a-kaf"), kaG = v("a-kag");
-    if (!isRoman(enF) || !isRoman(enG)) { msg.textContent = t("eNameEn"); return; }
-    if ((jaF && !jaG) || (!jaF && jaG)) { msg.textContent = t("eNameJaPair"); return; }
-    const en = `${fmtRoman(enG).trim()} ${fmtRoman(enF).trim()}`, name = jaF ? `${jaF} ${jaG}` : "", kana = kaF || kaG ? `${kaF} ${kaG}`.trim() : "";
-    const dept = facultyOnly(v("a-dept"));
-    if (!dept) { msg.textContent = t("eDept"); return; }
-    if (!isFaculty(dept)) { msg.textContent = t("eDeptFormat"); return; }
+    msg.textContent = "";
+    const bad = (id, key, fix) => { fieldErr($("#" + id), t(key), fix); return true; };
+    if (!isRoman(enF) && bad("a-enf", "eNameEn")) return;
+    if (!isRoman(enG) && bad("a-eng", "eNameEn")) return;
+    if (jaF && !jaG && bad("a-jag", "eNameJaPair")) return;
+    if (!jaF && jaG && bad("a-jaf", "eNameJaPair")) return;
+    for (const id of ["a-jaf", "a-jag"]) if (v(id) && !JA_NAME.test(v(id).replace(/ /g, "")) && bad(id, "eNameJaChars")) return;
+    for (const id of ["a-kaf", "a-kag"]) { const k = toHira(v(id)); if (k && !KANA.test(k) && bad(id, "eKana")) return; }
+    const en = `${fmtRoman(enG).trim()} ${fmtRoman(enF).trim()}`, name = jaF ? `${jaF} ${jaG}` : "", kana = kaF || kaG ? toHira(`${kaF} ${kaG}`).trim() : "";
+    const dr = checkDept(v("a-dept"), u, knownDepts());
+    if (dr.err && bad("a-dept", dr.err, dr.fix)) return;
+    const dept = dr.value;
     let list = peek("profs:" + uid); if (!Array.isArray(list)) { try { list = await L.profs(uid); } catch { list = []; } }
     const dup = list.find(p => sameProf(p, [name, en].filter(Boolean)));
     if (dup) { msg.innerHTML = `${esc(t("dupProf"))} <a href="#p.${esc(dup.id)}">${esc(pName(dup))}</a>`; return; }
@@ -659,25 +669,44 @@ function renderAddUni(app) {
   <section class="title"><h1>${esc(t("addUniTitle"))}</h1><p>${esc(t("addUniLead"))}</p></section>
   <form id="uf" novalidate style="display:flex;flex-direction:column;gap:20px">
     <div class="sheet">
-      <div class="q"><label class="lb" for="u-ja">${esc(t("uniJa"))}<small>${esc(t("oneOf"))}</small></label><input id="u-ja" type="text" maxlength="60" value="${esc(preJa)}"></div>
+      <div class="q"><label class="lb" for="u-ja">${esc(t("uniJa"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0"><input id="u-ja" type="text" maxlength="60" value="${esc(preJa)}" placeholder="${esc(t("uniJaPh"))}"><span class="small sub">${esc(t("uniJaHint"))}</span></div></div>
+      <div class="q"><label class="lb" for="u-en">${esc(t("uniEn"))}<small>${esc(t("required"))}</small></label><div style="display:flex;flex-direction:column;gap:8px;min-width:0"><input id="u-en" type="text" maxlength="100" value="${esc(fmtUniEn(preEn))}" placeholder="${esc(t("uniEnPh"))}" autocapitalize="words"><span class="small sub">${esc(t("uniEnHint"))}</span></div></div>
       <div class="q"><label class="lb" for="u-kana">${esc(t("uniKana"))}<small>${esc(t("optional"))}</small></label><input id="u-kana" type="text" maxlength="60"></div>
-      <div class="q"><label class="lb" for="u-en">${esc(t("uniEn"))}<small>${esc(t("oneOf"))}</small></label><input id="u-en" type="text" maxlength="80" value="${esc(preEn)}"></div>
       <div class="q"><label class="lb" for="u-pref">${esc(t("pref"))}<small>${esc(t("required"))}</small></label><select id="u-pref" class="selbox"><option value="">—</option>${PREFS.map(([j, e]) => `<option value="${j}">${esc(S.LANG === "en" ? e : j)}</option>`).join("")}</select></div>
     </div>
     <div class="row"><button class="btn solid" type="submit" id="u-sub">${esc(t("addBtn"))}</button><a class="btn" href="#home">${esc(t("cancel"))}</a><span class="msg" id="u-msg"></span></div>
   </form>`;
   app.querySelectorAll("#uf input,#uf select").forEach(i => i.addEventListener("input", () => (S.form.started = true)));
+  const enEl = $("#u-en"), kanaEl = $("#u-kana");
+  enEl.addEventListener("input", () => liveFormat(enEl, fmtUniEn));
+  enEl.addEventListener("blur", () => (enEl.value = fmtUniEn(enEl.value).trim()));
+  kanaEl.addEventListener("blur", () => (kanaEl.value = toHira(kanaEl.value).trim()));
+  // 日本語の大学名の型：使える文字だけで、「〜大学」「〜短期大学」で終わる
+  const checkJa = ja => {
+    if (!ja) return { err: "eUniJa" };
+    if (!UNI_JA.test(ja)) return { err: "eUniJaChars" };
+    if (!/(大学|大学校)$/.test(ja)) return { err: "eUniJaEnd", fix: ja.replace(/大?学?$/, "") + "大学" };
+    return {};
+  };
+  const checkEn = en => {
+    if (!en) return { err: "eUniEn" };
+    if (!/[A-Za-z]{2}/.test(en) || !/\b(University|College|Institute|School|Academy|Universit\w+)\b/i.test(en)) return { err: "eUniEnFmt", fix: /[A-Za-z]{2}/.test(en) ? en + " University" : "" };
+    return {};
+  };
+  $("#u-ja").addEventListener("blur", e => { const el = e.currentTarget; if (!el.isConnected) return; const ja = el.value.normalize("NFKC").replace(/[\s　]+/g, ""); if (!ja) return; el.value = ja; const r = checkJa(ja); if (r.err) fieldErr(el, t(r.err), r.fix, true); });
   $("#uf").onsubmit = async e => {
     e.preventDefault(); if (S.busy) return;
-    const ja = $("#u-ja").value.trim(), en = $("#u-en").value.trim(), kana = $("#u-kana").value.trim(), pref = $("#u-pref").value, msg = $("#u-msg");
-    msg.classList.add("ng");
-    if ([...ja].length < 2 && [...en].length < 2) { msg.textContent = t("eUniName"); return; }
-    if (!pref) { msg.textContent = t("ePref"); return; }
+    const ja = $("#u-ja").value.normalize("NFKC").replace(/[\s　]+/g, ""), en = fmtUniEn($("#u-en").value).trim(), kana = toHira($("#u-kana").value).trim(), pref = $("#u-pref").value, msg = $("#u-msg");
+    msg.classList.add("ng"); msg.textContent = "";
+    const rj = checkJa(ja); if (rj.err) return fieldErr($("#u-ja"), t(rj.err), rj.fix);
+    const re = checkEn(en); if (re.err) return fieldErr(enEl, t(re.err), re.fix);
+    if (kana && !KANA.test(kana)) return fieldErr(kanaEl, t("eKana"));
+    if (!pref) return fieldErr($("#u-pref"), t("ePref"));
     const dup = allUnis().find(u => sameUni(u, [ja, en, kana].filter(Boolean)));
     if (dup) { msg.innerHTML = `${esc(t("dupUni"))} <a href="#u.${esc(dup.id)}">${esc(uName(dup))}</a>`; return; }
     S.busy = true; $("#u-sub").disabled = true; msg.classList.remove("ng"); msg.textContent = t("adding");
     const id = "u_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-    const { error } = await sb.from("universities").insert({ id, name: ja || en, name_en: en || null, kana: kana || null, pref, created_by: S.MYID });
+    const { error } = await sb.from("universities").insert({ id, name: ja, name_en: en, kana: kana || null, pref, created_by: S.MYID });
     S.busy = false;
     if (error) { $("#u-sub").disabled = false; msg.classList.add("ng"); msg.textContent = t("addFail"); return; }
     S.form = null; invalidate("unis", "me"); rememberUni(id); go("u." + id); toast(t("uniAdded"));
@@ -1312,14 +1341,12 @@ function renderAdmin(app) {
       <div class="l1"><b>${esc(K[g.kind] || g.kind)}</b>${tg ? `<a href="${tg.href}">${esc(tg.title)}</a>` : `<span class="sub">${esc(t("targetGone"))}</span>`}<span class="mark ${tg && tg.hidden ? "" : "warn"}">${esc(t("nReports", g.list.length))}</span></div>
       ${tg && tg.text ? `<p class="quote">${esc(tg.text)}</p>` : ""}
       <ul class="small">${g.list.map(r => `<li>${esc(R[r.reason] || r.reason)}${r.note ? `：${esc(str(r.note, 200))}` : ""} <span class="sub">${fmtDate(r.created_at)}</span></li>`).join("")}</ul>
-      ${tg && !tg.hidden ? `<div class="small sub">${esc(t("adminRemovalHint"))}</div>` : ""}
     </article>`; }).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noReports"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminRemovals"))} ${d.removals.length}</button></div>
     ${d.removals.length ? d.removals.map(r => `<article class="adm">
       <div class="l1"><b>${esc(str(r.name, 60))}</b><span>${esc(str(r.university, 80))}</span><span class="mark">${esc(RO[r.role] || "")}</span><span class="mark">${esc(SC[r.scope] || "")}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span><span class="sub small">${fmtDate(r.created_at)}</span></div>
       <div class="small"><b>${esc(t("rTarget"))}：</b>${esc(str(r.target, 200))}</div>
-      <div class="small sub">${esc(t("adminRemovalHint"))}</div>
       <p class="quote">${esc(str(r.reason, 1000))}</p>
       <div class="small"><b>${esc(t("rEmail"))}：</b><span class="sel">${esc(str(r.email, 120))}</span></div>
       <div class="row"><button class="btn sm ${r.status === "done" ? "" : "solid"}" data-rst="${esc(r.id)}|${r.status === "done" ? "open" : "done"}">${esc(r.status === "done" ? t("markOpen") : t("markDone"))}</button></div>
@@ -1339,6 +1366,12 @@ function renderAdmin(app) {
     <div class="row"><button class="btn sm" id="pimp-tpl">${esc(t("pimpTemplate"))}</button><input type="file" id="pimp-file" accept=".csv,text/csv"></div>
     <div class="row"><button class="btn sm solid" id="pimp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="pimp-msg"></span></div>
     <div class="small" id="pimp-detail"></div>
+  </section>
+  <section><div class="tabs"><button aria-selected="true">${esc(t("uimpTitle"))}</button></div>
+    <p class="small">${esc(t("uimpLead"))}</p>
+    <div class="row"><input type="file" id="uimp-file" accept=".csv,text/csv"></div>
+    <div class="row"><button class="btn sm solid" id="uimp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="uimp-msg"></span></div>
+    <div class="small" id="uimp-detail"></div>
   </section>`;
   app.querySelectorAll("[data-hide]").forEach(b => (b.onclick = async () => {
     const [table, id, on] = b.dataset.hide.split("|");
@@ -1362,7 +1395,46 @@ function renderAdmin(app) {
     if (error) return toast(t("reportFail"));
     invalidate("admin"); render();
   }));
-  setupImport(); setupProfImport();
+  setupImport(); setupProfImport(); setupUniEnImport();
+}
+/* 大学の英語名をCSV（大学名または学校コード, 英語名）でまとめて登録する */
+function setupUniEnImport() {
+  const fi = $("#uimp-file"), run = $("#uimp-run"), msg = $("#uimp-msg"), det = $("#uimp-detail");
+  let plan = [];
+  fi.onchange = async () => {
+    const file = fi.files[0]; run.disabled = true; plan = []; det.innerHTML = ""; msg.classList.remove("ng"); if (!file) return;
+    const rows = await readCsvFile(file), clean = v => String(v || "").normalize("NFKC").replace(/\s+/g, " ").trim();
+    const hi = rows.findIndex(r => r.some(c => /英語|english/i.test(clean(c))));
+    const head = hi >= 0 ? rows[hi].map(clean) : [];
+    const ei = head.findIndex(h => /英語|english/i.test(h)), ui = head.findIndex(h => /大学|学校|university|code|コード/i.test(h) && !/英語|english/i.test(h));
+    if (hi < 0 || ei < 0 || ui < 0) { msg.textContent = t("uimpNoHeader"); msg.classList.add("ng"); return; }
+    const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u])), unknown = [], bad = []; let same = 0;
+    const seen = new Set();
+    for (const r of rows.slice(hi + 1)) {
+      const key = clean(r[ui]), en = clean(r[ei]); if (!key) continue;
+      const u = byId.get(key) || unis.find(x => norm(x.name) === norm(key));
+      if (!u) { unknown.push(key); continue; }
+      // CSVの英語名は大学の公式表記をそのまま使う（SOKENDAI のような大文字もそのまま）
+      if (!/[A-Za-z]{2}/.test(en) || hasJa(en)) { bad.push(key); continue; }
+      if (u.en === en) { same++; continue; }
+      if (seen.has(u.id)) continue; seen.add(u.id);
+      plan.push({ id: u.id, name: u.name, pref: u.pref, kana: u.kana || null, name_en: en.slice(0, 120) });
+    }
+    const ex = list => list.slice(0, 5).map(esc).join("、") + (list.length > 5 ? "…" : "");
+    msg.textContent = t("uimpParsed", plan.length);
+    det.innerHTML = [unknown.length ? `<div>${esc(t("uimpUnknown", unknown.length))}　<span class="sub">${ex(unknown)}</span></div>` : "", same ? `<div>${esc(t("uimpSame", same))}</div>` : "", bad.length ? `<div>${esc(t("uimpBad", bad.length))}　<span class="sub">${ex(bad)}</span></div>` : ""].join("");
+    run.disabled = !plan.length;
+  };
+  run.onclick = async () => {
+    run.disabled = true;
+    for (let i = 0; i < plan.length; i += 200) {
+      msg.textContent = t("importing", Math.min(i + 200, plan.length), plan.length);
+      const { error } = await sb.from("universities").upsert(plan.slice(i, i + 200), { onConflict: "id" });
+      if (error) { msg.textContent = t("reportFail") + " " + error.message; msg.classList.add("ng"); run.disabled = false; return; }
+    }
+    msg.textContent = t("uimpDone", plan.length); det.innerHTML = ""; fi.value = ""; plan = [];
+    invalidate("unis"); render();
+  };
 }
 /* 文部科学省の学校コードCSVから大学を取り込む */
 function setupImport() {
@@ -1396,7 +1468,7 @@ async function readCsvFile(file) {
 }
 function setupProfImport() {
   const fi = $("#pimp-file"), run = $("#pimp-run"), msg = $("#pimp-msg"), det = $("#pimp-detail");
-  let plan = [];
+  let plan = [], upds = [];
   $("#pimp-tpl").onclick = () => {
     const csv = "\uFEFF大学,氏名,ふりがな,英語表記,学部\n東都大学,山田 太郎,やまだ たろう,Taro Yamada,経済学部\n";
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "teachers-template.csv"; a.click();
@@ -1408,15 +1480,15 @@ function setupProfImport() {
     try {
       const res = await planProfImport(await readCsvFile(file));
       if (res.error) { msg.textContent = t(res.error); msg.classList.add("ng"); return; }
-      plan = res.add;
-      msg.textContent = t("pimpParsed", res.add.length);
+      plan = res.add; upds = res.upd;
+      msg.textContent = t("pimpParsed", res.add.length) + (upds.length ? "　" + t("pimpUpd", upds.length) : "");
       const ex = list => list.slice(0, 5).map(esc).join("、") + (list.length > 5 ? "…" : "");
       det.innerHTML = [
         res.unknown.length ? `<div>${esc(t("pimpUnknown", res.unknown.length))}　<span class="sub">${ex(res.unknown)}</span></div>` : "",
         res.dup ? `<div>${esc(t("pimpDup", res.dup))}</div>` : "",
         res.bad.length ? `<div>${esc(t("pimpBad", res.bad.length))}　<span class="sub">${ex(res.bad)}</span></div>` : "",
       ].join("");
-      run.disabled = !plan.length;
+      run.disabled = !plan.length && !upds.length;
     } catch (e) { console.error(e); msg.textContent = t("reportFail"); msg.classList.add("ng"); }
   };
   run.onclick = async () => {
@@ -1426,8 +1498,13 @@ function setupProfImport() {
       const { error } = await sb.from("professors").insert(plan.slice(i, i + 200).map(x => ({ ...x, created_by: S.MYID })));
       if (error) { msg.textContent = t("reportFail") + " " + error.message; msg.classList.add("ng"); return; }
     }
-    msg.textContent = t("pimpDone", plan.length); det.innerHTML = ""; fi.value = "";
-    invalidate("profs", "prof"); plan = [];
+    for (let i = 0; i < upds.length; i += 200) {
+      msg.textContent = t("pimpUpdating", Math.min(i + 200, upds.length), upds.length);
+      const { error } = await sb.from("professors").upsert(upds.slice(i, i + 200), { onConflict: "id" });
+      if (error) { msg.textContent = t("reportFail") + " " + error.message; msg.classList.add("ng"); return; }
+    }
+    msg.textContent = t("pimpDone", plan.length) + (upds.length ? "　" + t("pimpUpdDone", upds.length) : ""); det.innerHTML = ""; fi.value = "";
+    invalidate("profs", "prof"); plan = []; upds = [];
   };
 }
 // 「経済学部 経済学科」のような書き方から学部だけを取り出す
@@ -1447,9 +1524,61 @@ function liveFormat(el, fn) {
 const toHira = v => String(v || "").normalize("NFKC").replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 // アルファベットの氏名として使えるか（2文字以上で、ローマ字を含む）
 const isRoman = v => [...String(v || "").trim()].length >= 2 && /[A-Za-z]/.test(v) && !/[\u3040-\u30ff\u3400-\u9fff]/.test(v);
-function facultyOnly(d) { const m = String(d || "").match(/^(.*?(学部|学群|学域))/); return m ? m[1].trim() : String(d || "").trim(); }
-// 学部・学群・学域のような「学部にあたる名前」かどうか
-const isFaculty = d => /(学部|学群|学域|学類|教育課程|Faculty|School|College)/i.test(d) && !/(学科|専攻|コース|研究室|講座)$/.test(d);
+function facultyOnly(d) { const m = String(d || "").replace(/[\s　]+/g, " ").trim().match(/^(.*?(学部|学群|学域|学環))/); return m ? m[1].trim() : String(d || "").replace(/[\s　]+/g, " ").trim(); }
+/* ===== 入力の「型」 =====
+   学部欄：ふつうは「〜学部」。学部のない大学は、学群・学域・学類・学環・学府・研究科・研究院・教育部・センターなど、
+   その大学の組織名の形ならそのまま通す。短期大学は「〜学科」も通す。どれにも当てはまらなければ、直し方を添えてエラーにする */
+const FAC_END = /(学部|学群|学域|学類|学環|学系|学府|研究科|研究院|学術院|教育部|教養部|教育課程|課程|センター|研究所|機構|学院|学校)$/;
+const FAC_EN = /\b(Faculty|School|College|Institute|Cent(er|re)|Division|Department|Program(me)?)\b/i;
+function checkDept(raw, u, known) {
+  const d = facultyOnly(String(raw || "").normalize("NFKC"));
+  if (!d) return { err: "eDept" };
+  if (!hasJa(d)) {
+    if (FAC_EN.test(d)) return { value: fmtUniEn(d) };
+    return { err: "eDeptNeedSuffix", fix: "Faculty of " + fmtUniEn(d) };
+  }
+  const j = d.replace(/[\s　]+/g, "");
+  const short = /短期大学/.test(u?.name || ""), grad = /大学院大学$/.test(u?.name || "");
+  if (FAC_END.test(j) || (short && /学科$/.test(j))) return { value: j };
+  if (/(学科|専攻|コース|講座|研究室|プログラム|ゼミ)$/.test(j)) return { err: "eDeptSub" };
+  // 「経済」→ この大学に登録済みの「経済学部」などがあればそれを、なければ「経済学部」を勧める
+  const stem = j.replace(/学?部$/, "").replace(/学$/, "");
+  const cands = [stem + "学部", stem + "学群", stem + "学域", stem + "学類", stem + "研究科", stem + "学科"];
+  const hit = cands.find(c => (known || []).includes(c));
+  return { err: "eDeptNeedSuffix", fix: hit || stem + (short ? "学科" : grad ? "研究科" : "学部") };
+}
+const isFaculty = d => !checkDept(d).err;
+// 日本語の氏名・読み・大学名に使える文字
+const JA_NAME = /^[\u3400-\u9fff\uf900-\ufaff々〆ヶぁ-ゖァ-ヺー・]+$/;
+const KANA = /^[ぁ-ゖー・ ]+$/;
+const UNI_JA = /^[\u3400-\u9fff\uf900-\ufaff々ヶぁ-ゖァ-ヺー・A-Za-z0-9＆&]+$/;
+// 英語の大学名：各単語の先頭だけ大文字、of・the・and などの短い語は（先頭以外）小文字
+const SMALLW = new Set(["of", "the", "and", "for", "in", "at", "on", "to", "de", "du"]);
+function fmtUniEn(v) {
+  let first = true;
+  return String(v || "").normalize("NFKC").replace(/[’‘`]/g, "'").replace(/[^A-Za-z0-9' .,&\-]/g, "").replace(/\s+/g, " ").replace(/^ /, "")
+    .split(/([ \-])/).map(w => {
+      if (w === " " || w === "-" || !w) return w;
+      const lw = w.toLowerCase(), out = !first && SMALLW.has(lw.replace(/[.,]$/, "")) ? lw : lw.charAt(0).toUpperCase() + lw.slice(1);
+      first = false; return out;
+    }).join("");
+}
+// 欄のすぐ下にエラーを出す。直し方（fix）があれば「〜にする」ボタンを添える
+function fieldErr(el, text, fix, noFocus) {
+  clearErr(el);
+  el.classList.add("bad"); el.setAttribute("aria-invalid", "true");
+  const box = document.createElement("div"); box.className = "ferr"; box.setAttribute("role", "alert");
+  box.innerHTML = `<span>${esc(text)}</span>${fix ? ` <button type="button" class="btn sm">${esc(t("fixTo", fix))}</button>` : ""}`;
+  if (fix) { const bt = box.querySelector("button"); bt.onmousedown = e => e.preventDefault(); bt.onclick = () => { el.value = fix; clearErr(el); el.focus(); }; }
+  (el.closest(".namepair") || el).insertAdjacentElement("afterend", box);
+  el.addEventListener("input", () => clearErr(el), { once: true });
+  if (!noFocus) el.focus();
+}
+function clearErr(el) {
+  el.classList.remove("bad"); el.removeAttribute("aria-invalid");
+  const host = el.closest(".namepair") || el, n = host.nextElementSibling;
+  if (n && n.classList.contains("ferr")) n.remove();
+}
 async function planProfImport(rows) {
   const clean = v => String(v || "").trim();
   let hi = -1;
@@ -1464,7 +1593,7 @@ async function planProfImport(rows) {
   const di = find(/学部|学科|研究科|所属|部局|dept|department|faculty/i);
   if (ui < 0 || (ni < 0 && ei < 0) || di < 0) return { error: "pimpNoHeader" };
   const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u]));
-  const existing = {}, add = [], unknown = new Set(), bad = []; let dup = 0;
+  const existing = {}, add = [], unknown = new Set(), bad = [], upd = new Map(); let dup = 0;
   for (const r of rows.slice(hi + 1)) {
     if (!r.some(c => clean(c))) continue;
     const uv = clean(r[ui]);
@@ -1477,12 +1606,19 @@ async function planProfImport(rows) {
     if (!isRoman(en) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }
     if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }
     const names = [name, en].filter(Boolean);
-    if (existing[u.id].some(p => sameProf(p, names))) { dup++; continue; }
+    const hit = existing[u.id].find(p => sameProf(p, names));
+    if (hit) {
+      // 登録済みの先生に英語名・ふりがながまだなければ、書き足す
+      if (hit.id && !upd.has(hit.id) && ((!hit.en && en) || (!hit.kana && kana))) {
+        upd.set(hit.id, { id: hit.id, university_id: u.id, name: hit.name || name || null, name_en: hit.en || en || null, kana: hit.kana || kana || null, dept: hit.dept || dept });
+      } else dup++;
+      continue;
+    }
     const row = { university_id: u.id, name: name || null, name_en: en || null, kana: kana || null, dept };
     add.push(row);
     existing[u.id].push({ name, en, kana });
   }
-  return { add, unknown: [...unknown], bad, dup };
+  return { add, upd: [...upd.values()], unknown: [...unknown], bad, dup };
 }
 function parseCsv(text) {
   const out = []; let row = [], cell = "", q = false;

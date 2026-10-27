@@ -98,7 +98,7 @@ create table if not exists public.reviews (
   would_take_again boolean,
   attendance_required boolean,
   grade text check (grade in ('秀','優','良','可','不可')),
-  body text check (body is null or char_length(body) between 15 and 350),
+  body text check (body is null or char_length(body) between 1 and 350),
   ai_checked boolean not null default false,
   status text not null default 'published' check (status in ('published','hidden')),
   created_at timestamptz not null default now()

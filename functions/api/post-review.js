@@ -10,7 +10,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const quality = intIn(b.quality, 1, 5), difficulty = intIn(b.difficulty, 1, 5);
   if (!isUuid(professorId) || !course || quality == null || difficulty == null) return fail("invalid");
   const len = [...text].length;
-  if ((len > 0 && len < 15) || len > 350) return fail("invalid_length");
+  if (len > 350) return fail("invalid_length");
   const grade = GRADES.includes(b.grade) ? b.grade : null;
   const prof = await db(env, `professors?id=eq.${professorId}&status=eq.active&select=id`);
   if (!prof.length) return fail("not_found", 404);

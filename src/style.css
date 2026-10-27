@@ -267,25 +267,19 @@ input[type=file]{font-size:14px;max-width:100%}
 .msg.ng{color:var(--bad)}
 
 /* フッター：評価の3色の帯＋罫線で区切った3列の表 */
-footer{margin:24px -16px 0;padding:0 16px calc(14px + env(safe-area-inset-bottom,0px));background:var(--paper)}
+footer{margin:32px -16px 0;padding:0 16px calc(24px + env(safe-area-inset-bottom,0px));background:var(--paper)}
 .fbar{display:flex;height:6px;margin:0 -16px}
 .fbar i{flex:1}.fbar i:nth-child(1){background:var(--good)}.fbar i:nth-child(2){background:var(--mid)}.fbar i:nth-child(3){background:var(--bad)}
-.fin{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:10px;padding-top:14px}
-/* 3つのグループを横並びに。各グループの中のリンクも横に流して、高さを抑える */
+.fin{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding-top:24px}
 .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:2px solid var(--ink);border-bottom:2px solid var(--ink)}
-.fcol{display:block;padding:9px 14px 10px;line-height:1.7}
+.fcol{display:flex;flex-direction:column;gap:8px;padding:14px 16px 18px}
 .fcol+.fcol{border-left:1px solid var(--rule)}
-.fcol h2{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--sub);margin:0 0 2px}
-.fcol a{display:inline-block;margin-right:14px;color:var(--ink);text-decoration:none;font-weight:700;font-size:13px;white-space:nowrap}
+.fcol h2{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--sub);margin-bottom:2px}
+.fcol a{color:var(--ink);text-decoration:none;font-weight:700;font-size:14px;line-height:1.5}
 .fcol a:hover{text-decoration:underline}
-@media (max-width:640px){
-  .fgrid{grid-template-columns:minmax(0,1fr)}
-  .fcol{position:relative;padding:7px 0 7px 6.5em}
-  .fcol h2{position:absolute;left:0;top:11px;margin:0}
-  .fcol+.fcol{border-left:0;border-top:1px solid var(--rule)}
-}
-.fcopy{display:flex;align-items:baseline;gap:4px 12px;flex-wrap:wrap;font-size:12px}
-.fmark{font-family:var(--f-serif);font-weight:900;font-size:15px;letter-spacing:-.01em}
+@media (max-width:640px){.fgrid{grid-template-columns:minmax(0,1fr)}.fcol+.fcol{border-left:0;border-top:1px solid var(--rule)}}
+.fcopy{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}
+.fmark{font-family:var(--f-serif);font-weight:900;font-size:18px;letter-spacing:-.01em}
 .dl{display:grid;grid-template-columns:9em minmax(0,1fr);border-top:2px solid var(--ink);margin:0}
 .dl dt,.dl dd{margin:0;padding:12px 4px;border-bottom:1px solid var(--rule)}
 .dl dt{font-weight:700;color:var(--sub);font-size:13px}
@@ -317,7 +311,7 @@ footer{margin:24px -16px 0;padding:0 16px calc(14px + env(safe-area-inset-bottom
 .melist li{display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--rule)}
 .melist li .del{margin-left:auto}
 .mesec.danger h2{border-color:var(--bad)}
-#footnote{margin:0;font-size:11px;color:var(--sub);flex-basis:100%}
+#footnote{margin:0;font-size:11px;color:var(--sub);max-width:70ch}
 .mark.ok{border-color:var(--good);color:var(--ink);background:color-mix(in srgb,var(--good) 18%,var(--paper))}
 .reply{border-left:3px solid var(--ink);padding:6px 0 6px 12px;display:flex;flex-direction:column;gap:4px;margin-top:4px}
 .reply .rh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}
@@ -387,3 +381,10 @@ footer{margin:24px -16px 0;padding:0 16px calc(14px + env(safe-area-inset-bottom
 .namepair label{display:flex;flex-direction:column;gap:4px;min-width:0}
 .namepair input{width:100%}
 .dd li.additem a{font-weight:700;justify-content:flex-start;background:var(--faint)}
+
+/* トップページでは、フッターが画面の下端から始まるように本文の高さを確保する（色の帯だけが下に見える） */
+body.at-home main{min-height:calc(100svh - var(--hdr, 64px) - 64px)}
+/* 入力の型に合わないときのエラー（欄のすぐ下） */
+input.bad,select.bad{border-bottom-color:var(--bad)!important;border-bottom-width:2px!important}
+.ferr{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;color:var(--bad);font-size:13px;line-height:1.6}
+.ferr .btn{color:var(--ink,inherit)}

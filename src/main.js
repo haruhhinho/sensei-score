@@ -48,6 +48,7 @@ function route() {
   const v = dot < 0 ? h : h.slice(0, dot), id = dot < 0 ? "" : h.slice(dot + 1);
   if (v === "unis") { const i = id.indexOf("~"); if (i > 0 && id.slice(i + 1).trim()) return { v, id: id.slice(0, i), q: id.slice(i + 1) }; return { v: "home" }; }
   if (v === "find" || v === "dept") { const i = id.indexOf("~"); if (i > 0 && id.slice(i + 1).trim()) return { v, id: id.slice(0, i), q: id.slice(i + 1) }; return { v: "home" }; }
+  if (v === "all") return { v, id };
   if (["u", "p", "rate", "add", "school", "srate", "exam", "removal"].includes(v)) return { v: v === "u" ? "uni" : v === "p" ? "prof" : v, id };
   if (["help", "terms", "privacy", "cookies", "copyright", "contact"].includes(v)) return { v: "legal", id: v };
   if (["guidelines", "admin", "faculty", "adduni", "me"].includes(v)) return { v };
@@ -138,8 +139,9 @@ function render() {
   if (r.v === "prof" || r.v === "rate" || r.v === "exam") { const p = profById(r.id); if (p) { S.ctxUni = p.uni; S.ctxProf = pName(p); } }
   if (r.v === "school" || r.v === "srate") { S.ctxUni = r.id; S.barMode = "school"; }
   else if (r.v === "prof" || r.v === "rate") S.barMode = "prof";
+  if (r.v === "all") { S.ctxUni = r.id; S.barMode = "prof"; }
   if (r.v === "dept" || r.v === "find") { S.ctxUni = r.id; S.barMode = "prof"; if (r.v === "find") { S.ctxProf = r.q; rememberUni(r.id); } }
-  $("#bar").hidden = !["prof", "rate", "school", "srate", "dept", "find"].includes(r.v);
+  $("#bar").hidden = !["prof", "rate", "school", "srate", "dept", "find", "all"].includes(r.v);
   applyMode(); syncBar();
   if (S.AUTH === "in" && !S.CONSENTED && r.v !== "legal") return renderConsent(app);
   const unis = unisAll();
@@ -148,7 +150,7 @@ function render() {
   const fn = {
     home: renderHome, uni: renderFind, prof: renderProf, rate: renderRate, add: renderAdd, school: renderSchool,
     srate: renderSRate, exam: renderExamForm, removal: renderRemoval, legal: renderLegal, guidelines: renderGuide,
-    admin: renderAdmin, faculty: renderFaculty, adduni: renderAddUni, me: renderMe, login: renderLogin,
+    admin: renderAdmin, faculty: renderFaculty, adduni: renderAddUni, all: renderAll, me: renderMe, login: renderLogin,
     dept: (a, id) => renderDept(a, id, r.q), find: (a, id) => renderResults(a, id, r.q), unis: (a, id) => renderUniResults(a, id, r.q),
   }[r.v];
   fn(app, r.id);
@@ -205,6 +207,7 @@ function renderFind(app, uid) {
     <input id="profq" class="line" type="text" autocomplete="off" value="${esc(S.pendingTeacher)}">
     <ul class="hits" id="phits"></ul>
     <div class="after" id="after"></div>
+    <div class="allbtn"><a class="btn" href="#all.${esc(uid)}">${esc(t("allProfs"))}${Array.isArray(profs) ? `<span class="sub">　${esc(t("nPeople", profs.length))}</span>` : ""}</a></div>
   </section>`;
   $("#chg").onclick = () => { S.changingUni = true; if (location.hash && location.hash !== "#home") location.hash = "home"; else render(); };
   const inp = $("#profq"), out = $("#phits"), after = $("#after");
@@ -212,7 +215,7 @@ function renderFind(app, uid) {
     const raw = inp.value.trim(), q = norm(raw);
     const cur = peek("profs:" + uid), list = Array.isArray(cur) ? cur : [];
     const hits = q ? list.filter(p => profMatches(p, q)).slice(0, 12) : [];
-    out.innerHTML = hits.map(p => { const s = p.s, alt = pAlt(p); return `<li><a href="#p.${esc(p.id)}"><span><span class="nm">${esc(pName(p))}</span>${alt ? `<span class="sub">　${esc(alt)}</span>` : ""}<span class="sub">　${esc(dName(p.dept))}</span></span><span class="sub">${s.n ? esc(t("scoreN", s.q.toFixed(1), s.n)) : esc(t("noReviews"))}</span></a></li>`; }).join("");
+    out.innerHTML = hits.map(p => { const s = p.s, alt = pAlt(p); return `<li><a href="#p.${esc(p.id)}"><span><span class="nm">${esc(pName(p))}</span>${alt ? `<span class="sub">　${esc(alt)}</span>` : ""}<span class="sub">　${esc(dName(p.dept, p.uni))}</span></span><span class="sub">${s.n ? esc(t("scoreN", s.q.toFixed(1), s.n)) : esc(t("noReviews"))}</span></a></li>`; }).join("");
     const exact = hits.some(p => sameProf(p, [raw]));
     let html = "";
     if (cur === undefined && q) html += `<div class="small sub">${esc(t("loading"))}</div>`;
@@ -315,7 +318,7 @@ function showProfHits() {
   const list = S.ctxUni ? profsOf(S.ctxUni) : [];
   const hits = q && Array.isArray(list) ? list.filter(p => profMatches(p, q)).slice(0, 10) : [];
   if (!hits.length) { dd.hidden = true; return; }
-  dd.innerHTML = hits.map(p => `<li><a href="#p.${esc(p.id)}"><span>${esc(pName(p))}<span class="sub">　${esc(dName(p.dept))}</span></span><span class="sub">${p.s.n ? p.s.q.toFixed(1) + " / 5" : esc(t("noReviews"))}</span></a></li>`).join("");
+  dd.innerHTML = hits.map(p => `<li><a href="#p.${esc(p.id)}"><span>${esc(pName(p))}<span class="sub">　${esc(dName(p.dept, p.uni))}</span></span><span class="sub">${p.s.n ? p.s.q.toFixed(1) + " / 5" : esc(t("noReviews"))}</span></a></li>`).join("");
   dd.hidden = false;
   dd.querySelectorAll("a").forEach(a => { a.onmousedown = e => e.preventDefault(); a.onclick = () => { S.pendingTeacher = ""; $("#b-prof").blur(); }; });
 }
@@ -372,7 +375,7 @@ function renderProf(app, pid) {
       <div class="basis">${esc(t("basis", s.n))}</div>
       <h1 class="pname">${esc(pName(p))}${p.verified ? ` <span class="mark ok" style="font-size:12px;vertical-align:middle">${esc(t("verified"))}</span>` : ""}</h1>
       ${alt ? `<div class="altname">${esc(alt)}</div>` : ""}
-      <p class="pmeta">${p.dept ? `<a href="#dept.${esc(u.id)}~${encodeURIComponent(p.dept)}" title="${esc(t("deptListOf", dName(p.dept)))}">${esc(dName(p.dept))}</a>` : esc(t("deptUnset"))}　<a href="#school.${esc(u.id)}" title="${esc(t("schoolEvalOf", uName(u)))}">${esc(uName(u))}</a></p>
+      <p class="pmeta">${p.dept ? `<a href="#dept.${esc(u.id)}~${encodeURIComponent(p.dept)}" title="${esc(t("deptListOf", dName(p.dept, p.uni)))}">${esc(dName(p.dept, p.uni))}</a>` : esc(t("deptUnset"))}　<a href="#school.${esc(u.id)}" title="${esc(t("schoolEvalOf", uName(u)))}">${esc(uName(u))}</a></p>
       ${s.n ? `<div class="figs"><div><b>${s.again != null ? s.again + "%" : "—"}</b><span>${esc(t("again"))}</span></div><div><b>${s.d.toFixed(1)}</b><span>${esc(t("diff5"))}</span></div></div>` : ""}
       <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#rate.${esc(pid)}">${esc(t("rateThis"))}</a>` : `<div class="notice">${esc(t("needLoginRate"))}${loginLink()}</div>`}</div>
       ${S.ISADMIN ? `<div class="row" style="margin-top:14px">${adminHide("professors", p.id, t("adminHidePage"))}</div>` : ""}
@@ -601,8 +604,8 @@ function roster(list, showDept) {
     <div class="rrow rhd"><span>${esc(t("ov"))}</span><span>${esc(t("name"))}</span><span class="wide">${showDept ? esc(t("dept")) : ""}</span><span class="wide num">${esc(t("count"))}</span><span class="wide num">${esc(t("again"))}</span><span class="wide num">${esc(t("diff"))}</span></div>
     ${list.map(p => { const s = p.s; return `<a class="rrow" href="#p.${esc(p.id)}">
       <span class="sq ${cls(s.n ? s.q : null)}">${s.n ? s.q.toFixed(1) : "—"}</span>
-      <span class="nm">${esc(pName(p))}${pAlt(p) ? `<span class="alt2">${esc(pAlt(p))}</span>` : ""}<span class="mob">${showDept ? esc(dName(p.dept)) + "　" : ""}${esc(s.n ? t("mobLine", s.n, s.again ?? "—", s.d.toFixed(1)) : t("noReviews"))}</span></span>
-      <span class="wide small">${showDept ? esc(dName(p.dept)) : ""}</span>
+      <span class="nm">${esc(pName(p))}${pAlt(p) ? `<span class="alt2">${esc(pAlt(p))}</span>` : ""}<span class="mob">${showDept ? esc(dName(p.dept, p.uni)) + "　" : ""}${esc(s.n ? t("mobLine", s.n, s.again ?? "—", s.d.toFixed(1)) : t("noReviews"))}</span></span>
+      <span class="wide small">${showDept ? esc(dName(p.dept, p.uni)) : ""}</span>
       <span class="wide num">${s.n || "—"}</span>
       <span class="wide num">${s.n && s.again != null ? s.again + "%" : "—"}</span>
       <span class="wide num">${s.n ? s.d.toFixed(1) : "—"}</span>
@@ -626,10 +629,43 @@ function renderDept(app, uid, dept) {
   if (profs === undefined) { app.innerHTML = LOADING(); return; }
   if (isErr(profs)) { app.innerHTML = LOADFAIL(); return; }
   const list = profs.filter(p => p.dept === dept).sort(byScore);
-  app.innerHTML = `${crumb(["#home", t("top")], ["#school." + uid, uName(u)], [null, dName(dept)])}
-  <section class="title"><h1>${esc(dName(dept))}</h1><p>${esc(t("deptMembers", uName(u), list.length))}</p></section>
-  ${list.length ? roster(list, false) : `<div class="notice">${esc(t("noDeptProfs"))}</div>`}
+  app.innerHTML = `${crumb(["#home", t("top")], ["#school." + uid, uName(u)], [null, dName(dept, uid)])}
+  <section class="title"><h1>${esc(dName(dept, uid))}</h1><p>${esc(t("deptMembers", uName(u), list.length))}</p></section>
+  ${list.length ? pagedRoster("d:" + uid + "|" + dept, list, false) : `<div class="notice">${esc(t("noDeptProfs"))}</div>`}
   ${addProfLink(uid, "", dept)}`;
+  bindMore(app);
+}
+/* 一覧は少しずつ表示する。最初は PAGE 人、「もっと見る」で PAGE 人ずつ増やす（戻ったときに同じ数で開くよう覚えておく） */
+const PAGE = 30;
+S.shown = S.shown || {};
+function pagedRoster(key, list, showDept) {
+  const n = Math.min(list.length, S.shown[key] || PAGE);
+  return `${roster(list.slice(0, n), showDept)}${n < list.length ? `<div class="morebar"><span class="sub small">${esc(t("shownOf", n, list.length))}</span><button class="btn" type="button" data-more="${esc(key)}">${esc(t("showMoreN", Math.min(PAGE, list.length - n)))}</button></div>` : ""}`;
+}
+function bindMore(app) {
+  app.querySelectorAll("[data-more]").forEach(b => (b.onclick = () => {
+    const k = b.dataset.more; S.shown[k] = (S.shown[k] || PAGE) + PAGE;
+    const y = scrollY; render(); window.scrollTo(0, y);
+  }));
+}
+/* 大学の教員一覧（学部で絞り込み可） */
+function renderAll(app, uid) {
+  const u = uniById(uid); if (!u) { app.innerHTML = notFound(); return; }
+  const profs = profsOf(uid);
+  if (profs === undefined) { app.innerHTML = LOADING(); return; }
+  if (isErr(profs)) { app.innerHTML = LOADFAIL(); return; }
+  S.allDept = S.allDept || {};
+  const depts = [...new Set(profs.map(p => p.dept).filter(Boolean))].sort((a, b) => dName(a, uid).localeCompare(dName(b, uid), S.LANG));
+  const cur = depts.includes(S.allDept[uid]) ? S.allDept[uid] : "";
+  const coll = new Intl.Collator(S.LANG === "en" ? "en" : "ja");
+  const list = profs.filter(p => !cur || p.dept === cur).sort((a, b) => coll.compare(S.LANG === "en" ? a.en || a.name : a.kana || a.name || a.en, S.LANG === "en" ? b.en || b.name : b.kana || b.name || b.en));
+  app.innerHTML = `${crumb(["#home", t("top")], ["#u." + uid, uName(u)], [null, t("allProfs")])}
+  <section class="title"><h1>${esc(t("allProfs"))}</h1><p>${esc(t("deptMembers", uName(u), profs.length))}</p></section>
+  ${depts.length > 1 ? `<div class="row"><label class="small" for="all-dept">${esc(t("dept"))}</label><select id="all-dept" class="selbox" style="max-width:100%"><option value="">${esc(t("allDepts"))}</option>${depts.map(d => `<option value="${esc(d)}" ${d === cur ? "selected" : ""}>${esc(dName(d, uid))}（${profs.filter(p => p.dept === d).length}）</option>`).join("")}</select></div>` : ""}
+  ${list.length ? pagedRoster("a:" + uid + "|" + cur, list, !cur) : `<div class="notice">${esc(t("noDeptProfs"))}</div>`}
+  ${addProfLink(uid, "", cur)}`;
+  const sel = $("#all-dept"); if (sel) sel.onchange = () => { S.allDept[uid] = sel.value; render(); };
+  bindMore(app);
 }
 
 /* ===================================================================
@@ -765,7 +801,7 @@ function renderSchool(app, uid) {
     <h1 class="pname">${esc(uName(u))}</h1>
     ${S.LANG === "en" && u.en ? `<div class="altname">${esc(u.name)}</div>` : ""}
     <p class="pmeta">${esc(uPref(u))}</p>
-    <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#srate.${esc(uid)}">${esc(t("rateSchool"))}</a>` : `<div class="notice">${esc(t("needLoginSchool"))}${loginLink()}</div>`}</div>
+    <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#srate.${esc(uid)}">${esc(t("rateSchool"))}</a>` : `<div class="notice">${esc(t("needLoginSchool"))}${loginLink()}</div>`}<a class="btn" href="#all.${esc(uid)}">${esc(t("allProfs"))}</a></div>
   </section>
   <section><div class="dist"><h3>${esc(t("byCat"))}<span>${esc(t("avg5"))}</span></h3>
     ${n ? `<div class="hchart two" role="img" aria-label="${esc(t("byCat"))}">${SCATS.map((c, ci) => `<div class="hrow wide"><span>${esc(scatL(c))}</span><span class="track"><i style="width:${(cat[c[0]] / 5) * 100}%;--i:${ci}"></i></span><span class="c">${cat[c[0]].toFixed(1)}</span></div>`).join("")}</div>` : `<div class="notice" style="margin-top:12px">${esc(t("noSchoolEval"))}</div>`}
@@ -1189,7 +1225,7 @@ function renderFaculty(app) {
     const q = norm(pi.value); const list = f.uni ? peek("profs:" + f.uni) : null;
     const hits = q && Array.isArray(list) ? list.filter(p => profMatches(p, q)).slice(0, 8) : [];
     if (!hits.length) { dd.hidden = true; return; }
-    dd.innerHTML = hits.map(p => `<li><a href="#" data-pid="${esc(p.id)}"><span>${esc(pName(p))}<span class="sub">　${esc(dName(p.dept))}</span></span></a></li>`).join(""); dd.hidden = false;
+    dd.innerHTML = hits.map(p => `<li><a href="#" data-pid="${esc(p.id)}"><span>${esc(pName(p))}<span class="sub">　${esc(dName(p.dept, p.uni))}</span></span></a></li>`).join(""); dd.hidden = false;
     dd.querySelectorAll("a").forEach(a => { a.onmousedown = e => e.preventDefault(); a.onclick = e => { e.preventDefault(); const p = list.find(x => x.id === a.dataset.pid); f.pid = p.id; f.pq = pName(p); pi.value = f.pq; dd.hidden = true; }; });
   };
   pi.onfocus = () => { if (f.uni) profsOf(f.uni); };
@@ -1344,6 +1380,9 @@ async function loadAdmin() {
   const pids = [...new Set([...tr, ...te, ...hr.data, ...he.data, ...cl.data, ...rem.data].map(r => r.professor_id).filter(Boolean))];
   const names = {};
   if (pids.length) ((await sb.from("professors").select("id,name,name_en").in("id", pids)).data || []).forEach(p => (names[p.id] = { name: p.name || "", en: p.name_en || "" }));
+  // 本人確認の申請がある先生のレビュー数（取り消した先生を削除してよいかの判断に使う）
+  const cpids = [...new Set(cl.data.map(c => c.professor_id).filter(Boolean))], revN = {};
+  if (cpids.length) ((await sb.from("reviews").select("professor_id").in("professor_id", cpids)).data || []).forEach(r => (revN[r.professor_id] = (revN[r.professor_id] || 0) + 1));
   const targets = {};
   tr.forEach(r => (targets["review|" + r.id] = { text: r.body, title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id, hidden: r.status === "hidden", table: "reviews" }));
   ts.forEach(r => (targets["school|" + r.id] = { text: r.body || "", title: uName(uniById(r.university_id)), href: "#school." + r.university_id, hidden: r.status === "hidden", table: "school_ratings" }));
@@ -1354,7 +1393,7 @@ async function loadAdmin() {
     ...hs.data.map(r => ({ id: r.id, table: "school_ratings", text: r.body || "", title: uName(uniById(r.university_id)), href: "#school." + r.university_id })),
     ...he.data.map(r => ({ id: r.id, table: "exams", text: r.memo || "", title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id })),
   ];
-  return { reports: rep.data, removals: rem.data, claims: cl.data, targets, hidden, names };
+  return { reports: rep.data, removals: rem.data, claims: cl.data, targets, hidden, names, revN };
 }
 function renderAdmin(app) {
   if (!S.ISADMIN) { app.innerHTML = `<div class="notice"><b>${esc(t("adminOnly"))}</b></div>`; return; }
@@ -1378,7 +1417,7 @@ function renderAdmin(app) {
     ${d.claims.length ? d.claims.map(c => { const u = uniById(c.university_id), n = d.names[c.professor_id]; return `<article class="adm">
       <div class="l1"><b><a href="#p.${esc(c.professor_id)}">${esc(n ? pName(n) : "—")}</a></b><span>${esc(u ? uName(u) : "")}</span><span class="mark ${c.status === "approved" ? "ok" : c.status === "pending" ? "warn" : ""}">${esc(ST[c.status] || "")}</span><span class="sub small">${fmtDate(c.created_at)}</span></div>
       <div class="small"><b>${esc(t("cEmail"))}：</b><span class="sel">${esc(str(c.email, 120))}</span>${c.title ? `　<b>${esc(t("cTitle"))}：</b>${esc(str(c.title, 40))}` : ""}</div>
-      <div class="row">${c.status !== "approved" ? `<button class="btn sm solid" data-cl="ok|${esc(c.id)}">${esc(t("approve"))}</button>` : ""}${c.status !== "rejected" ? `<button class="btn sm" data-cl="ng|${esc(c.id)}">${esc(c.status === "approved" ? t("unapprove") : t("reject"))}</button>` : ""}</div>
+      <div class="row">${c.status !== "approved" ? `<button class="btn sm solid" data-cl="ok|${esc(c.id)}">${esc(t("approve"))}</button>` : ""}${c.status !== "rejected" ? `<button class="btn sm" data-cl="ng|${esc(c.id)}">${esc(c.status === "approved" ? t("unapprove") : t("reject"))}</button>` : ""}${c.status === "rejected" && n ? (d.revN[c.professor_id] ? `<span class="sub small">${esc(t("cantDelHasRev", d.revN[c.professor_id]))}</span>` : `<button class="btn sm danger" data-pdel="${esc(c.professor_id)}">${esc(t("delProf"))}</button>`) : ""}</div>
     </article>`; }).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noClaims"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminReports"))} ${reps.length}</button></div>
@@ -1436,6 +1475,13 @@ function renderAdmin(app) {
     if (r2.error) return toast(t("reportFail"));
     invalidate("admin", "profs", "prof"); toast(dcs === "ok" ? t("approved") : t("rejectedT")); render();
   }));
+  app.querySelectorAll("[data-pdel]").forEach(b => (b.onclick = async () => {
+    const pid = b.dataset.pdel;
+    if (!(await askConfirm({ title: t("cfDelProf"), body: t("cfDelProfBody"), ok: t("delProf") }))) return;
+    const { error } = await sb.from("professors").delete().eq("id", pid);
+    if (error) return toast(t("delFail"));
+    invalidate("admin", "profs", "prof", "me"); toast(t("deleted")); render();
+  }));
   app.querySelectorAll("[data-rst]").forEach(b => (b.onclick = async () => {
     const [id, st] = b.dataset.rst.split("|");
     const { error } = await sb.from("removal_requests").update({ status: st }).eq("id", id);
@@ -1460,7 +1506,7 @@ function setupAdminSearch() {
       if (my !== seq) return;
       if (error) { out.textContent = t("reportFail"); return; }
       if (!data.length) { out.textContent = t("adminSearchNone"); return; }
-      out.innerHTML = `<div class="sub" style="margin:8px 0">${esc(t("adminSearchN", data.length))}</div><ul class="melist">${data.map(p => `<li><a href="#p.${esc(p.id)}">${esc(pName({ name: p.name || "", en: p.name_en || "" }))}</a><span class="sub small">${esc([p.name && p.name_en ? (S.LANG === "en" ? p.name : p.name_en) : "", uName(uniById(p.university_id)), dName(p.dept)].filter(Boolean).join("・"))}${p.status === "hidden" ? `・${esc(t("adminHidden"))}` : ""}</span></li>`).join("")}</ul>`;
+      out.innerHTML = `<div class="sub" style="margin:8px 0">${esc(t("adminSearchN", data.length))}</div><ul class="melist">${data.map(p => `<li><a href="#p.${esc(p.id)}">${esc(pName({ name: p.name || "", en: p.name_en || "" }))}</a><span class="sub small">${esc([p.name && p.name_en ? (S.LANG === "en" ? p.name : p.name_en) : "", uName(uniById(p.university_id)), dName(p.dept, p.university_id)].filter(Boolean).join("・"))}${p.status === "hidden" ? `・${esc(t("adminHidden"))}` : ""}</span></li>`).join("")}</ul>`;
     }, 250);
   };
 }
@@ -1537,7 +1583,7 @@ function setupProfImport() {
   const fi = $("#pimp-file"), run = $("#pimp-run"), msg = $("#pimp-msg"), det = $("#pimp-detail");
   let plan = [], upds = [];
   $("#pimp-tpl").onclick = () => {
-    const csv = "\uFEFF大学,氏名,ふりがな,英語表記,学部\n東都大学,山田 太郎,やまだ たろう,Taro Yamada,経済学部\n";
+    const csv = "\uFEFF大学,氏名,ふりがな,英語表記,学部,学部（英語）\n東都大学,山田 太郎,やまだ たろう,Taro Yamada,経済学部,Faculty of Economics\n";
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "teachers-template.csv"; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
@@ -1655,9 +1701,10 @@ async function planProfImport(rows) {
   const find = (re, not) => head.findIndex(h => re.test(h) && !(not && not.test(h)));
   const ui = find(/大学|学校|university|school/i, /学部|学科/);
   const ki = find(/ふりがな|フリガナ|よみ|ヨミ|かな|カナ|kana/i);
-  const ei = find(/英|english|roman|ローマ字/i);
+  const ei = find(/英|english|roman|ローマ字/i, /学部|所属|faculty|dept|department/i);
+  const dei = find(/(学部|所属|faculty|dept|department).*(英|english)|(英|english).*(学部|所属|faculty|dept)/i);
   const ni = find(/氏名|名前|教員名|^name$/i, /ふりがな|フリガナ|よみ|ヨミ|かな|カナ|kana|英|english|roman|ローマ字/i);
-  const di = find(/学部|学科|研究科|所属|部局|dept|department|faculty/i);
+  const di = find(/学部|学科|研究科|所属|部局|dept|department|faculty/i, /英|english/i);
   if (ui < 0 || (ni < 0 && ei < 0) || di < 0) return { error: "pimpNoHeader" };
   const unis = allUnis(), byId = new Map(unis.map(u => [u.id, u]));
   const existing = {}, add = [], unknown = new Set(), bad = [], upd = new Map(); let dup = 0;
@@ -1670,18 +1717,19 @@ async function planProfImport(rows) {
     const en = ei >= 0 ? fmtRoman(clean(r[ei]), true).slice(0, 60) : "";
     const kana = ki >= 0 ? clean(r[ki]).slice(0, 40) : "";
     const dept = facultyOnly(clean(r[di])).slice(0, 60);
+    const deptEnV = dei >= 0 ? clean(r[dei]).normalize("NFKC").replace(/\s+/g, " ").slice(0, 120) : "";
     if (!isRoman(en) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }
     if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }
     const names = [name, en].filter(Boolean);
     const hit = existing[u.id].find(p => sameProf(p, names));
     if (hit) {
       // 登録済みの先生に英語名・ふりがながまだなければ、書き足す
-      if (hit.id && !upd.has(hit.id) && ((!hit.en && en) || (!hit.kana && kana))) {
-        upd.set(hit.id, { id: hit.id, university_id: u.id, name: hit.name || name || null, name_en: hit.en || en || null, kana: hit.kana || kana || null, dept: hit.dept || dept });
+      if (hit.id && !upd.has(hit.id) && ((!hit.en && en) || (!hit.kana && kana) || (!hit.deptEn && deptEnV && hit.dept === dept))) {
+        upd.set(hit.id, { id: hit.id, university_id: u.id, name: hit.name || name || null, name_en: hit.en || en || null, kana: hit.kana || kana || null, dept: hit.dept || dept, dept_en: hit.deptEn || (hit.dept === dept ? deptEnV : "") || null });
       } else dup++;
       continue;
     }
-    const row = { university_id: u.id, name: name || null, name_en: en || null, kana: kana || null, dept };
+    const row = { university_id: u.id, name: name || null, name_en: en || null, kana: kana || null, dept, dept_en: deptEnV || null };
     add.push(row);
     existing[u.id].push({ name, en, kana });
   }

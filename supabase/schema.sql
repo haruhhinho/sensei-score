@@ -76,6 +76,7 @@ create table if not exists public.professors (
 );
 create index if not exists professors_uni_idx on public.professors(university_id);
 alter table public.professors enable row level security;
+alter table public.professors add column if not exists dept_en text;
 alter table public.professors drop constraint if exists professors_name_en_required;
 alter table public.professors add constraint professors_name_en_required check (name_en is not null and btrim(name_en) <> '');
 drop policy if exists prof_read on public.professors;
@@ -291,7 +292,8 @@ select p.id, p.university_id, p.name, p.name_en, p.kana, p.dept,
        round(avg(r.difficulty)::numeric, 1) as d,
        round(100.0 * avg(case when r.would_take_again then 1 when r.would_take_again = false then 0 end))::int as again_pct,
        exists (select 1 from public.faculty_verified v where v.professor_id = p.id) as verified,
-       (p.created_by is not null and p.created_by = auth.uid()) as added_by_me
+       (p.created_by is not null and p.created_by = auth.uid()) as added_by_me,
+       p.dept_en
 from public.professors p
 left join public.reviews r on r.professor_id = p.id and r.status = 'published'
 where p.status = 'active'

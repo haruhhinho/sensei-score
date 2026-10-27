@@ -44,7 +44,9 @@ export const uName = u => (u ? (S.LANG === "en" ? u.en || u.name : u.name) : "")
 export const uPref = u => (u ? (S.LANG === "en" ? prefEn(u.pref) : u.pref) : "");
 export const pName = p => (S.LANG === "en" ? p.en || p.name : p.name || p.en);
 export const pAlt = p => { const a = S.LANG === "en" ? p.name : p.en; return a && a !== pName(p) ? a : ""; };
-export const dName = d => (S.LANG === "en" ? deptEn(d) : d || "");
+// 大学の公式の英語の学部名（名簿から読み込んだもの）を優先し、なければ辞書で英語にする
+export const DEPT_EN = new Map();
+export const dName = (d, uid) => (S.LANG === "en" ? DEPT_EN.get(uid + "|" + d) || deptEn(d) : d || "");
 export const cName = c => c || "";
 
 /* ---------- 名前の照合（日本語・かな・ローマ字、姓名どちらの順でも同じ人） ---------- */
@@ -87,8 +89,8 @@ async function all(q, page = 1000) {
 }
 
 export const rowToUni = r => ({ id: r.id, name: r.name, en: r.name_en || "", kana: r.kana || "", pref: r.pref });
-export const rowToProf = r => ({
-  id: r.id, uni: r.university_id, name: r.name || "", en: r.name_en || "", kana: r.kana || "", dept: r.dept || "", verified: !!r.verified, mine: !!r.added_by_me,
+export const rowToProf = r => (r.dept_en && r.dept && DEPT_EN.set(r.university_id + "|" + r.dept, r.dept_en), {
+  id: r.id, uni: r.university_id, name: r.name || "", en: r.name_en || "", kana: r.kana || "", dept: r.dept || "", deptEn: r.dept_en || "", verified: !!r.verified, mine: !!r.added_by_me,
   s: { n: r.n || 0, q: r.q == null ? null : Number(r.q), d: r.d == null ? null : Number(r.d), again: r.again_pct },
 });
 export const rowToRev = r => ({

@@ -84,6 +84,8 @@ function applyScroll(last) {
 }
 window.addEventListener("hashchange", () => {
   const nv = route().v;
+  // トップへ戻ったとき、開いたままのページが古い版なら、新しい版を読み込み直す（/ を開いたときと同じ画面にする）
+  if (nv === "home" && Date.now() - (S.staleAt || 0) > 60e3) { S.staleAt = Date.now(); appIsStale().then(s => { if (s) location.replace(location.pathname + location.search); }); }
   if (nv === "admin") invalidate("admin");
   if (nv === "me") invalidate("me", "myclaims");
   S.animNext = true; S.form = null; if (!S.keepPending) S.pendingTeacher = ""; S.keepPending = false;
@@ -130,6 +132,8 @@ function renderAuth() {
    =================================================================== */
 function render() {
   const r = route(), app = $("#app");
+  // トップは「#home」付きでも、何も付かないアドレス（/）にそろえる
+  if (r.v === "home" && /^#(home)?$/.test(location.hash)) { try { history.replaceState(history.state, "", location.pathname + location.search); } catch {} }
   if (!configured) { app.innerHTML = `<div class="notice"><b>Supabase is not configured.</b> Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</div>`; return; }
   if (S.animNext) { S.animNext = false; app.classList.add("anim"); clearTimeout(render.at); render.at = setTimeout(() => app.classList.remove("anim"), 1400); }
   document.body.classList.toggle("at-home", r.v === "home" || r.v === "uni");

@@ -1721,7 +1721,8 @@ async function planProfImport(rows) {
     if (!isRoman(en) || !dept || !isFaculty(dept)) { bad.push(name || en || uv); continue; }
     if (!existing[u.id]) { let list = peek("profs:" + u.id); if (!Array.isArray(list)) list = await L.profs(u.id); existing[u.id] = [...list]; }
     const names = [name, en].filter(Boolean);
-    const hit = existing[u.id].find(p => sameProf(p, names));
+    // 日本語名が両方あるときは日本語名で照合する（英語名が同じでも漢字が違えば別人：山本 直希／山本 直樹）
+    const hit = existing[u.id].find(p => (p.name && name ? norm(p.name) === norm(name) : sameProf(p, names)));
     if (hit) {
       // 登録済みの先生に英語名・ふりがながまだなければ、書き足す
       if (hit.id && !upd.has(hit.id) && ((!hit.en && en) || (!hit.kana && kana) || (!hit.deptEn && deptEnV && hit.dept === dept))) {

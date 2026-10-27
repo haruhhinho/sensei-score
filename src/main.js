@@ -137,7 +137,6 @@ function render() {
   if (!configured) { app.innerHTML = `<div class="notice"><b>Supabase is not configured.</b> Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</div>`; return; }
   if (S.animNext) { S.animNext = false; app.classList.add("anim"); clearTimeout(render.at); render.at = setTimeout(() => app.classList.remove("anim"), 1400); }
   document.body.classList.toggle("at-home", r.v === "home" || r.v === "uni");
-  const hd = document.querySelector("header.top"); if (hd) document.documentElement.style.setProperty("--hdr", hd.offsetHeight + "px");
   $("#adminlink").hidden = !S.ISADMIN;
   S.ctxUni = null; S.ctxProf = "";
   if (r.v === "uni") rememberUni(r.id);
@@ -148,6 +147,8 @@ function render() {
   if (r.v === "dept" || r.v === "find") { S.ctxUni = r.id; S.barMode = "prof"; if (r.v === "find") { S.ctxProf = r.q; rememberUni(r.id); } }
   $("#bar").hidden = !["prof", "rate", "school", "srate", "dept", "find", "all"].includes(r.v);
   applyMode(); syncBar();
+  // ヘッダーの高さは、検索バーの表示・非表示を決めたあとで測る（前の画面の検索バーの分だけトップが短くならないように）
+  const hd = document.querySelector("header.top"); if (hd) document.documentElement.style.setProperty("--hdr", hd.offsetHeight + "px");
   if (S.AUTH === "in" && !S.CONSENTED && r.v !== "legal") return renderConsent(app);
   const unis = unisAll();
   if (unis === undefined && !["legal", "guidelines", "login", "removal"].includes(r.v)) { app.innerHTML = LOADING(); return; }

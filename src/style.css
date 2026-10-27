@@ -392,3 +392,8 @@ input.bad,select.bad{border-bottom-color:var(--bad)!important;border-bottom-widt
 .allbtn{margin-top:28px;display:flex;justify-content:center}
 .morebar{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:20px}
 .morebar .btn{min-width:min(320px,100%)}
+/* ヘッダー：ログインボタンは言語の切り替えと同じ枠・文字の色に、ログイン後の名前は少し大きく */
+.auth .btn.sm:not(.solid){color:var(--ink);border-color:var(--ink);font-weight:700;font-size:13px}
+.auth .melink b{font-size:15px}
+.sublink{font-size:13px;color:var(--sub)}
+.sublink:hover{color:var(--ink)}

@@ -207,7 +207,6 @@ function renderFind(app, uid) {
     <input id="profq" class="line" type="text" autocomplete="off" value="${esc(S.pendingTeacher)}">
     <ul class="hits" id="phits"></ul>
     <div class="after" id="after"></div>
-    <div class="allbtn"><a class="btn" href="#all.${esc(uid)}">${esc(t("allProfs"))}${Array.isArray(profs) ? `<span class="sub">　${esc(t("nPeople", profs.length))}</span>` : ""}</a></div>
   </section>`;
   $("#chg").onclick = () => { S.changingUni = true; if (location.hash && location.hash !== "#home") location.hash = "home"; else render(); };
   const inp = $("#profq"), out = $("#phits"), after = $("#after");
@@ -800,8 +799,8 @@ function renderSchool(app, uid) {
     <div class="basis">${esc(t("schoolBasis", n))}</div>
     <h1 class="pname">${esc(uName(u))}</h1>
     ${S.LANG === "en" && u.en ? `<div class="altname">${esc(u.name)}</div>` : ""}
-    <p class="pmeta">${esc(uPref(u))}</p>
-    <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#srate.${esc(uid)}">${esc(t("rateSchool"))}</a>` : `<div class="notice">${esc(t("needLoginSchool"))}${loginLink()}</div>`}<a class="btn" href="#all.${esc(uid)}">${esc(t("allProfs"))}</a></div>
+    <p class="pmeta">${esc(uPref(u))}　<a class="sublink" href="#all.${esc(uid)}">${esc(t("allProfsLink"))}</a></p>
+    <div class="row" style="margin-top:20px">${S.AUTH === "in" ? `<a class="btn solid" href="#srate.${esc(uid)}">${esc(t("rateSchool"))}</a>` : `<div class="notice">${esc(t("needLoginSchool"))}${loginLink()}</div>`}</div>
   </section>
   <section><div class="dist"><h3>${esc(t("byCat"))}<span>${esc(t("avg5"))}</span></h3>
     ${n ? `<div class="hchart two" role="img" aria-label="${esc(t("byCat"))}">${SCATS.map((c, ci) => `<div class="hrow wide"><span>${esc(scatL(c))}</span><span class="track"><i style="width:${(cat[c[0]] / 5) * 100}%;--i:${ci}"></i></span><span class="c">${cat[c[0]].toFixed(1)}</span></div>`).join("")}</div>` : `<div class="notice" style="margin-top:12px">${esc(t("noSchoolEval"))}</div>`}
@@ -1083,9 +1082,9 @@ function renderRemoval(app, pid) {
     <div class="sheet">
       <div class="q"><label class="lb" for="r-name">${esc(t("rName"))}<small>${esc(t("required"))}</small></label><input id="r-name" type="text" maxlength="60" value="${esc(f.name)}"></div>
       <div class="q"><label class="lb" for="r-uni">${esc(t("rUni"))}<small>${esc(t("required"))}</small></label><input id="r-uni" type="text" maxlength="80" value="${esc(f.uni)}"></div>
-      <div class="q"><span class="lb">${esc(t("rRole"))}<small>${esc(t("required"))}</small></span>${chips("r-role", Object.keys(RO), f.role, k => RO[k])}</div>
-      <div class="q"><span class="lb">${esc(t("rScope"))}<small>${esc(t("required"))}</small></span>${chips("r-scope", Object.keys(SC), f.scope, k => SC[k])}</div>
       <div class="q"><label class="lb" for="r-target">${esc(t("rTarget"))}<small>${esc(t("required"))}</small></label><div><input id="r-target" type="text" maxlength="200" value="${esc(f.target)}"><div class="small sub">${esc(t("rTargetHint"))}</div></div></div>
+      <div class="q"><span class="lb">${esc(t("rScope"))}<small>${esc(t("required"))}</small></span>${chips("r-scope", Object.keys(SC), f.scope, k => SC[k])}</div>
+      <div class="q"><span class="lb">${esc(t("rRole"))}<small>${esc(t("required"))}</small></span>${chips("r-role", Object.keys(RO), f.role, k => RO[k])}</div>
       <div class="q"><label class="lb" for="r-reason">${esc(t("rReason"))}<small>${esc(t("rReasonRule"))}</small></label><textarea id="r-reason" class="ruled" maxlength="1000">${esc(f.reason)}</textarea></div>
       <div class="q"><label class="lb" for="r-email">${esc(t("rEmail"))}<small>${esc(t("required"))}</small></label><div><input id="r-email" type="email" maxlength="120" value="${esc(f.email)}" autocomplete="email"><div class="small sub">${esc(t("rEmailHint"))}</div></div></div>
       <div class="q"><span class="lb">${esc(t("confirm"))}<small>${esc(t("required"))}</small></span><label class="agree"><input type="checkbox" id="r-agree" ${f.agree ? "checked" : ""}>${esc(t("rAgree"))}</label></div>
@@ -1100,10 +1099,10 @@ function renderRemoval(app, pid) {
     const msg = $("#r-msg"), setMsg = (m, ng) => { msg.textContent = m; msg.classList.toggle("ng", !!ng); };
     if (!f.name.trim()) return setMsg(t("eRName"), 1);
     if (!f.uni.trim()) return setMsg(t("eRUni"), 1);
-    if (!f.role) return setMsg(t("eRRole"), 1);
-    if (!f.scope) return setMsg(t("eRScope"), 1);
     if (!f.target.trim()) return setMsg(t("eRTarget"), 1);
-    if ([...f.reason.trim()].length < 20) return setMsg(t("eRReason"), 1);
+    if (!f.scope) return setMsg(t("eRScope"), 1);
+    if (!f.role) return setMsg(t("eRRole"), 1);
+    if (!f.reason.trim()) return setMsg(t("eRReason"), 1);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) return setMsg(t("eREmail"), 1);
     if (!f.agree) return setMsg(t("eRAgree"), 1);
     S.busy = true; $("#r-sub").disabled = true;

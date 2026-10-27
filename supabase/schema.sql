@@ -250,7 +250,7 @@ create table if not exists public.removal_requests (
   role text not null check (role in ('self','staff','other')),
   scope text not null check (scope in ('page','review','exam')),
   target text not null check (char_length(target) between 1 and 200),
-  reason text not null check (char_length(reason) between 20 and 1000),
+  reason text not null check (char_length(reason) between 1 and 1000),
   email text not null check (char_length(email) <= 120),
   professor_id uuid references public.professors(id) on delete set null,
   status text not null default 'open' check (status in ('open','done')),

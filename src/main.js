@@ -1776,7 +1776,8 @@ function facultyOnly(d) { const m = String(d || "").replace(/[\s　]+/g, " ").tr
 /* ===== 入力の「型」 =====
    学部欄：ふつうは「〜学部」。学部のない大学は、学群・学域・学類・学環・学府・研究科・研究院・教育部・センターなど、
    その大学の組織名の形ならそのまま通す。短期大学は「〜学科」も通す。どれにも当てはまらなければ、直し方を添えてエラーにする */
-const FAC_END = /(学部|学群|学域|学類|学環|学系|学府|研究科|研究院|学術院|教育部|教養部|教育課程|課程|センター|研究所|機構|学院|学校)$/;
+// 「〜系」（筑波大学の医学医療系など）と「〜教育院」（九州大学の基幹教育院など）も大学の正式な組織名として通す
+const FAC_END = /(学部|学群|学域|学類|学環|系|学府|研究科|研究院|学術院|教育院|教育部|教養部|教育課程|課程|センター|研究所|機構|学院|学校)$/;
 const FAC_EN = /\b(Faculty|School|College|Institute|Cent(er|re)|Division|Department|Program(me)?)\b/i;
 function checkDept(raw, u, known) {
   const d = facultyOnly(String(raw || "").normalize("NFKC"));

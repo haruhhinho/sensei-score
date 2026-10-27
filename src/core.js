@@ -131,6 +131,7 @@ export async function api(path, body) {
 }
 export function errText(e) {
   const c = e && e.code;
+  if (c === "duplicate_school") return t("dupSchool");
   if (c === "duplicate") return t("dupReview");
   if (c === "ai_not_configured" || c === "ai_error") return t("aiDown");
   if (c === "ai_rate_limited") return t("aiLimitPost");

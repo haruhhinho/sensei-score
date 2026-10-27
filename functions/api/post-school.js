@@ -14,12 +14,16 @@ export const onRequestPost = handler(async ({ request, env }) => {
   if ([...text].length > 200) return fail("invalid_length");
   const u = await db(env, `universities?id=eq.${encodeURIComponent(uni)}&status=eq.active&select=id`);
   if (!u.length) return fail("not_found", 404);
+  // 大学の評価は1つの大学につき1人1件まで
+  const dup = await db(env, `school_ratings?user_id=eq.${user.id}&university_id=eq.${encodeURIComponent(uni)}&select=id`);
+  if (dup.length) return fail("duplicate_school", 409);
   if (text) {
     const m = await moderate(env, { context: "a rating of a university as a whole", text, maxLen: 200, lang });
     if (m.verdict !== "ok") return json({ ok: false, code: "moderation", check: m });
     row.ai_checked = true;
   }
   row.body = text || null;
-  await db(env, "school_ratings", { method: "POST", prefer: "return=minimal", body: row });
+  try { await db(env, "school_ratings", { method: "POST", prefer: "return=minimal", body: row }); }
+  catch (e) { if (e && e.code === "duplicate") return fail("duplicate_school", 409); throw e; }
   return json({ ok: true });
 });

@@ -385,6 +385,8 @@ footer{margin:32px -16px 0;padding:0 16px calc(24px + env(safe-area-inset-bottom
 /* トップページでは、フッターが画面の下端から始まるように本文の高さを確保する（色の帯だけが下に見える） */
 /* トップページ：最初の画面の下端に、フッターの3色の線だけがちょうど見えるようにする（フッターの上の余白32px＋線6px） */
 body.at-home main{min-height:calc(100vh - var(--hdr, 64px) - 38px);min-height:calc(100svh - var(--hdr, 64px) - 38px)}
+/* 読み込み中の画面も、トップと同じく下の欄は色の帯だけが見えるようにする */
+main:empty,main:has(> .loading:only-child){min-height:calc(100vh - var(--hdr, 64px) - 38px);min-height:calc(100svh - var(--hdr, 64px) - 38px)}
 /* 入力の型に合わないときのエラー（欄のすぐ下） */
 input.bad,select.bad{border-bottom-color:var(--bad)!important;border-bottom-width:2px!important}
 .ferr{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;color:var(--bad);font-size:13px;line-height:1.6}

@@ -186,6 +186,11 @@ create table if not exists public.school_ratings (
   created_at timestamptz not null default now()
 );
 create index if not exists school_uni_idx on public.school_ratings(university_id);
+-- 大学の評価は1つの大学につき1人1件まで（重複があれば、新しいほうを残して古いほうを消してから索引を作る）
+delete from public.school_ratings a using public.school_ratings b
+  where a.user_id is not null and a.user_id = b.user_id and a.university_id = b.university_id
+    and (a.created_at, a.id) < (b.created_at, b.id);
+create unique index if not exists school_one_per_user on public.school_ratings(user_id, university_id) where user_id is not null;
 alter table public.school_ratings enable row level security;
 drop policy if exists sr_own_read on public.school_ratings;
 drop policy if exists sr_own_delete on public.school_ratings;
@@ -387,3 +392,11 @@ create policy fac_read on public.faculties for select using (true);
 create policy fac_admin on public.faculties for all using (public.is_admin()) with check (public.is_admin());
 grant select on public.faculties to anon, authenticated;
 
+
+-- =====================================================================
+--  マイページを速く開くための索引（自分が追加した先生・大学を新しい順に読む）
+-- =====================================================================
+create index if not exists professors_created_by_idx on public.professors(created_by, created_at desc, id) where created_by is not null;
+create index if not exists universities_created_by_idx on public.universities(created_by, created_at desc, id) where created_by is not null;
+create index if not exists reviews_user_idx on public.reviews(user_id) where user_id is not null;
+create index if not exists exams_user_idx on public.exams(user_id) where user_id is not null;

@@ -97,6 +97,18 @@ window.addEventListener("hashchange", () => {
   if (wantY == null) window.scrollTo(0, 0); else [50, 150, 400, 900].forEach(ms => setTimeout(applyScroll, ms)), setTimeout(() => applyScroll(true), 1500);
 });
 
+/* 今いるページと同じリンクを押したときは、入力中の内容を消して先頭から描き直す
+   （ブラウザは同じアドレスへのリンクでは何もしないため） */
+document.addEventListener("click", e => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest("a[href^='#']"); if (!a || a.target) return;
+  const h = a.getAttribute("href"), cur = location.hash || "#home";
+  if (h !== cur && !(h === "#home" && route().v === "home")) return;
+  e.preventDefault();
+  S.form = null; S.pendingTeacher = ""; S.animNext = true; wantY = null;
+  window.scrollTo(0, 0); render(); window.scrollTo(0, 0);
+});
+
 /* ===================================================================
    ヘッダー・フッター・言語
    =================================================================== */
@@ -423,7 +435,7 @@ function drawRevs(p, rs) {
         <div class="l1"><span class="course">${esc(cName(r.course))}</span><span class="date">${fmtDate(r.at)}</span></div>
         <div class="at">${r.again != null ? `<span>${esc(t("again"))}<b>${esc(r.again ? t("yes") : t("no"))}</b></span>` : ""}${r.att != null ? `<span>${esc(t("att"))}<b>${esc(r.att ? t("req") : t("opt"))}</b></span>` : ""}${r.grade ? `<span>${esc(t("grade"))}<b>${esc(G[r.grade] || r.grade)}</b></span>` : ""}</div>
         ${r.text ? trP(r.id, r.text) : ""}${replyHTML(r, replies[r.id], canReply)}
-        <div class="ft"><span>${esc(t("anon"))}</span>${trB(r.id, r.text)}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-del="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("review", r.id)}${S.ISADMIN ? adminHide("reviews", r.id) : ""}</div>
+        <div class="ft"><span>${esc(t("anon"))}</span>${trB(r.id, r.text)}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-del="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("review", r.id)}${S.ISADMIN ? adminHide("reviews", r.id) + adminDel("review", r.id) : ""}</div>
       </div>
     </article>`).join("") : `<div class="notice" style="margin-top:16px">${esc(rs.length ? t("noRevCourse") : t("noRev"))}</div>`;
   el.querySelectorAll("[data-del]").forEach(b => (b.onclick = async () => {
@@ -823,7 +835,7 @@ function renderSchool(app, uid) {
         <div class="bd">
           <div class="cats">${SCATS.map(c => `<span><small>${esc(scatL(c))}</small><b>${r.s[c[0]]}</b></span>`).join("")}</div>
           ${r.text ? trP(r.id, r.text, "small sub") : ""}
-          <div class="small sub" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span>${fmtDate(r.at)}</span>${r.text ? trB(r.id, r.text) : ""}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-sdel="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("school", r.id)}${S.ISADMIN ? adminHide("school_ratings", r.id) : ""}</div>
+          <div class="small sub" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span>${fmtDate(r.at)}</span>${r.text ? trB(r.id, r.text) : ""}${r.mine ? `<span class="mark me">${esc(t("mine"))}</span><button class="del" data-sdel="${esc(r.id)}">${esc(t("del"))}</button>` : reportBtn("school", r.id)}${S.ISADMIN ? adminHide("school_ratings", r.id) + adminDel("school", r.id) : ""}</div>
         </div>
       </article>`).join("")}</div>
   </section>`;
@@ -831,12 +843,16 @@ function renderSchool(app, uid) {
     if (!(await askDelete(t("cfSchool")))) return;
     const { error } = await sb.from("school_ratings").delete().eq("id", b.dataset.sdel);
     if (error) return toast(t("delFail"));
-    invalidate("school:" + uid, "me"); toast(t("deleted")); render();
+    invalidate("school:" + uid, "mysr", "me"); toast(t("deleted")); render();
   }));
 }
 function renderSRate(app, uid) {
   const u = uniById(uid); if (!u) { app.innerHTML = notFound(); return; }
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#school." + uid, "← " + t("schoolEvalOf", uName(u))])}<div class="notice"><b>${esc(t("needLoginSchool"))}</b>${loginLink()}</div>`; return; }
+  // 大学の評価は1つの大学につき1人1件まで
+  const mine = need("mysr:" + uid, async () => { const { data, error } = await sb.from("school_ratings").select("id").eq("university_id", uid).eq("user_id", S.MYID).limit(1); if (error) throw error; return data.length > 0; });
+  if (mine === undefined) { app.innerHTML = LOADING(); return; }
+  if (mine === true) { app.innerHTML = `${crumb(["#home", t("top")], ["#school." + uid, t("schoolEvalOf", uName(u))], [null, t("evalCrumb")])}<div class="notice"><b>${esc(t("alreadySchool"))}</b> <a href="#me">${esc(t("me"))}</a></div>`; return; }
   if (!S.form || S.form.kind !== "school" || S.form.uid !== uid) S.form = { kind: "school", uid, s: {}, text: "" };
   const f = S.form;
   app.innerHTML = `
@@ -865,7 +881,7 @@ function renderSRate(app, uid) {
     try {
       const res = await api("post-school", { universityId: uid, scores: f.s, text, lang: S.LANG });
       if (!res.ok) { setMsg(""); checkBox($("#f-check"), res.check, ta, 200); return; }
-      S.form = null; invalidate("school:" + uid, "me"); go("school." + uid); toast(t("schoolPosted"));
+      S.form = null; invalidate("school:" + uid, "mysr", "me"); go("school." + uid); toast(t("schoolPosted"));
     } catch (err) { setMsg(errText(err), 1); }
     finally { S.busy = false; if (btn.isConnected) btn.disabled = false; }
   };
@@ -886,7 +902,7 @@ function drawExams(p, list) {
       <div><div class="t">${esc(examTitle(x))}</div><div class="m"><span>${esc(cName(x.course))}</span><span>${esc(t("pages", x.pages))}</span><span>${esc(t("sharedOn", fmtDate(x.created_at)))}</span></div></div>
       <button class="btn sm" data-open="${i}">${esc(t("view"))}</button>
       ${x.memo ? trP(x.id, x.memo) : ""}
-      <div class="ft"><span>${esc(t("anon"))}</span>${x.memo ? trB(x.id, x.memo) : ""}${x.is_mine ? `<span class="mark me">${esc(t("myShare"))}</span><button class="del" data-edel="${i}">${esc(t("del"))}</button>` : reportBtn("exam", x.id)}${S.ISADMIN ? adminHide("exams", x.id) : ""}</div>
+      <div class="ft"><span>${esc(t("anon"))}</span>${x.memo ? trB(x.id, x.memo) : ""}${x.is_mine ? `<span class="mark me">${esc(t("myShare"))}</span><button class="del" data-edel="${i}">${esc(t("del"))}</button>` : reportBtn("exam", x.id)}${S.ISADMIN ? adminHide("exams", x.id) + adminDel("exam", x.id) : ""}</div>
     </article>`).join("") : `<div class="notice" style="margin-top:16px">${esc(t("noExam"))}</div>`}`;
   el.querySelectorAll("[data-open]").forEach(b => (b.onclick = () => openExam(list[+b.dataset.open])));
   el.querySelectorAll("[data-edel]").forEach(b => (b.onclick = async () => {
@@ -1397,6 +1413,32 @@ document.addEventListener("click", async e => {
   if (on === "1" && table === "professors" && route().v === "prof") go("home"); else render();
 });
 
+/* 管理者用：投稿を削除する（元に戻せない）。過去問・資料は写真もまとめて消す */
+const TBL = { review: "reviews", school: "school_ratings", exam: "exams" };
+function adminDel(kind, id) { return `<button class="btn sm danger" data-adel="${kind}|${esc(id)}">${esc(t("adminDel"))}</button>`; }
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-adel]"); if (!b || !S.ISADMIN) return;
+  const [kind, id] = b.dataset.adel.split("|");
+  if (!(await askConfirm({ title: t("cfAdminDel"), body: t("cfAdminDelBody"), ok: t("cfDelOk") }))) return;
+  let ok = true;
+  if (kind === "exam") { try { await api("delete-exam", { id }); } catch { ok = false; } }
+  else ok = !(await sb.from(TBL[kind]).delete().eq("id", id)).error;
+  if (!ok) return toast(t("delFail"));
+  // 消した投稿への通報も片付ける
+  await sb.from("reports").delete().eq("kind", kind).eq("target_id", id);
+  invalidate("admin", "revs", "school", "exams", "profs", "prof", "myrev", "mysr", "me");
+  toast(t("deleted")); render();
+});
+/* 管理者用：問題のない投稿への通報を消す */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-rdis]"); if (!b || !S.ISADMIN) return;
+  const [kind, id] = b.dataset.rdis.split("|");
+  if (!(await askConfirm({ title: t("cfDismiss"), body: t("cfDismissBody"), ok: t("dismissRep"), danger: false }))) return;
+  const { error } = await sb.from("reports").delete().eq("kind", kind).eq("target_id", id);
+  if (error) return toast(t("reportFail"));
+  invalidate("admin"); toast(t("dismissed")); render();
+});
+
 /* 自分が追加した先生・大学の削除（ほかの人のレビューなどがある場合は削除依頼で対応） */
 async function deleteOwn(kind, id, uni) {
   if (!(await askDelete(kind === "prof" ? t("cfProfDel") : t("cfUniDel")))) return;
@@ -1424,16 +1466,23 @@ async function loadMe() {
     }
     return { data: all, error: null };
   };
+  // 追加した先生・大学は数万件になることがあるので、件数と最初の100件だけ読む（残りは「さらに読み込む」で）
   const [rv, sc, ex, pf, un, rp, rr] = await Promise.all([
     q("reviews", "id,professor_id,course,quality,status,created_at"), q("school_ratings", "id,university_id,status,created_at,rep,loc,car,fac,net,food,club,life,safe,happy"),
-    q("exams", "id,professor_id,course,year,status,created_at"), q("professors", "id,name,name_en,university_id,created_at"), q("universities", "id,name,name_en,created_at"),
-    q("reports", "id,created_at"), q("removal_requests", "id,name,target,scope,status,created_at"),
+    q("exams", "id,professor_id,course,year,status,created_at"), mePage("professors", 0), mePage("universities", 0),
+    sb.from("reports").select("id", { count: "exact", head: true }).eq("user_id", S.MYID), q("removal_requests", "id,name,target,scope,status,created_at"),
   ]);
   for (const x of [rv, sc, ex, pf, un, rp, rr]) if (x.error) throw x.error;
   const pids = [...new Set([...rv.data, ...ex.data].map(r => r.professor_id))];
   const names = {};
-  for (let i = 0; i < pids.length; i += 200) { const { data } = await sb.from("professors").select("id,name,name_en").in("id", pids.slice(i, i + 200)); (data || []).forEach(p => (names[p.id] = { name: p.name || "", en: p.name_en || "" })); }
-  return { rv: rv.data, sc: sc.data, ex: ex.data, pf: pf.data, un: un.data, nRep: rp.data.length, nRem: rr.data.length, rems: rr.data, names };
+  const chunks = []; for (let i = 0; i < pids.length; i += 200) chunks.push(pids.slice(i, i + 200));
+  (await Promise.all(chunks.map(c => sb.from("professors").select("id,name,name_en").in("id", c)))).forEach(({ data }) => (data || []).forEach(p => (names[p.id] = { name: p.name || "", en: p.name_en || "" })));
+  return { rv: rv.data, sc: sc.data, ex: ex.data, pf: pf.data, nPf: pf.count ?? pf.data.length, un: un.data, nUn: un.count ?? un.data.length, nRep: rp.count || 0, nRem: rr.data.length, rems: rr.data, names };
+}
+const ME_PAGE = 100;
+function mePage(tb, from) {
+  const cols = tb === "professors" ? "id,name,name_en,university_id,created_at" : "id,name,name_en,created_at";
+  return sb.from(tb).select(cols, from ? undefined : { count: "exact" }).eq("created_by", S.MYID).order("created_at", { ascending: false }).order("id").range(from, from + ME_PAGE - 1);
 }
 function renderMe(app) {
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#home", t("top")], [null, t("me")])}<div class="notice"><b>${esc(t("needLoginRate"))}</b>${loginLink()}</div>`; return; }
@@ -1445,7 +1494,12 @@ function renderMe(app) {
   const none = `<p class="sub small">${esc(t("meNone"))}</p>`;
   const sec = (title, n, body) => `<section class="mesec"><h2>${esc(title)} <span class="sub">${n}</span></h2>${body}</section>`;
   // 一覧は最初の5件だけ見せ、残りは「もっと見る」で開く
-  const ML = 5, mlist = items => `<ul class="melist">${items.map((h, i) => (i < ML ? h : h.replace(/^<li/, '<li hidden data-more'))).join("")}</ul>${items.length > ML ? `<button class="btn sm memore" type="button" data-n="${items.length - ML}">${esc(t("showMore", items.length - ML))}</button>` : ""}`;
+  //   tb・total を渡した一覧は、読み込んだ分より多くあれば「さらに読み込む」を出す（開いた状態は覚えておく）
+  const ML = 5, mlist = (items, tb, total) => {
+    const open = tb && S.meOpen && S.meOpen[tb];
+    const rest = total ? total - items.length : 0;
+    return `<ul class="melist">${items.map((h, i) => (i < ML || open ? h : h.replace(/^<li/, '<li hidden data-more'))).join("")}</ul>${items.length > ML ? `<button class="btn sm memore" type="button"${tb ? ` data-tb="${tb}"` : ""}>${esc(open ? t("showLess") : t("showMore", items.length - ML))}</button>` : ""}${open && rest > 0 ? ` <button class="btn sm" type="button" data-memore="${tb}">${esc(t("loadMoreN", rest))}</button>` : ""}`;
+  };
   const pn = id => { const x = d.names[id]; return x ? pName(x) : "—"; };
   const hiddenMark = r => (r.status === "hidden" ? `・<span class="sub">${esc(t("adminHidden"))}</span>` : "");
   const prov = S.ME && S.ME.provider === "google" ? t("meLoginGoogle") : t("meLoginEmail");
@@ -1460,8 +1514,8 @@ function renderMe(app) {
   ${sec(t("meReviews"), d.rv.length, d.rv.length ? mlist(d.rv.map(r => `<li><a href="#p.${esc(r.professor_id)}">${esc(pn(r.professor_id))}</a><span class="sub small">${esc(r.course)}・${Number(r.quality).toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="review|${esc(r.id)}">${esc(t("del"))}</button></li>`)) : none)}
   ${sec(t("meSchools"), d.sc.length, d.sc.length ? mlist(d.sc.map(r => { const u = uniById(r.university_id); const avg = SCATS.reduce((a, [k]) => a + r[k], 0) / SCATS.length; return `<li><a href="#school.${esc(r.university_id)}">${esc(u ? uName(u) : "—")}</a><span class="sub small">${avg.toFixed(1)}・${fmtDate(r.created_at)}${hiddenMark(r)}</span><button class="del" data-mdel="school|${esc(r.id)}">${esc(t("del"))}</button></li>`; })) : none)}
   ${sec(t("meExams"), d.ex.length, d.ex.length ? mlist(d.ex.map(x => `<li><a href="#p.${esc(x.professor_id)}">${esc(pn(x.professor_id))}</a><span class="sub small">${esc(x.course)}・${x.year}${hiddenMark(x)}</span><button class="del" data-mdel="exam|${esc(x.id)}">${esc(t("del"))}</button></li>`)) : none)}
-  ${sec(t("meAddedUnis"), d.un.length, d.un.length ? mlist(d.un.map(u => `<li><a href="#u.${esc(u.id)}">${esc(S.LANG === "en" ? u.name_en || u.name : u.name)}</a><button class="del" data-odel="uni|${esc(u.id)}">${esc(t("del"))}</button></li>`)) : none)}
-  ${sec(t("meAddedProfs"), d.pf.length, d.pf.length ? mlist(d.pf.map(p => `<li><a href="#p.${esc(p.id)}">${esc(S.LANG === "en" ? p.name_en || p.name : p.name || p.name_en)}</a><span class="sub small">${esc(uniById(p.university_id) ? uName(uniById(p.university_id)) : "")}</span><button class="del" data-odel="prof|${esc(p.id)}">${esc(t("del"))}</button></li>`)) : none)}
+  ${sec(t("meAddedUnis"), d.nUn, d.un.length ? mlist(d.un.map(u => `<li><a href="#u.${esc(u.id)}">${esc(S.LANG === "en" ? u.name_en || u.name : u.name)}</a><button class="del" data-odel="uni|${esc(u.id)}">${esc(t("del"))}</button></li>`), "universities", d.nUn) : none)}
+  ${sec(t("meAddedProfs"), d.nPf, d.pf.length ? mlist(d.pf.map(p => `<li><a href="#p.${esc(p.id)}">${esc(S.LANG === "en" ? p.name_en || p.name : p.name || p.name_en)}</a><span class="sub small">${esc(uniById(p.university_id) ? uName(uniById(p.university_id)) : "")}</span><button class="del" data-odel="prof|${esc(p.id)}">${esc(t("del"))}</button></li>`), "professors", d.nPf) : none)}
   ${sec(t("meRequests"), d.nRep + d.nRem, `<p class="small">${esc(t("meReported", d.nRep))}　${esc(t("meRemovals", d.nRem))}</p>${d.rems.length ? `<ul class="melist">${d.rems.map(r => `<li><span>${esc(str(r.target, 60))}</span><span class="sub small">${esc((t("scopes") || {})[r.scope] || "")}・${fmtDate(r.created_at)}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span></li>`).join("")}</ul>` : ""}`)}
   ${S.ME && S.ME.provider !== "google" ? `<section class="mesec"><h2>${esc(t("mePwTitle"))}</h2><p class="small">${esc(t("mePwLead"))}</p><div><a class="btn" href="#newpw">${esc(t("mePwChange"))}</a></div></section>` : ""}
   <section class="mesec"><h2>${esc(t("signOut"))}</h2><p class="small">${esc(t("meOutLead"))}</p><div><button class="btn" id="me-out">${esc(t("signOut"))}</button></div></section>
@@ -1472,6 +1526,14 @@ function renderMe(app) {
     const open = rest.some(li => li.hidden);
     rest.forEach(li => (li.hidden = !open));
     b.textContent = open ? t("showLess") : t("showMore", rest.length);
+    if (b.dataset.tb) { S.meOpen = { ...(S.meOpen || {}), [b.dataset.tb]: open }; render(); }
+  }));
+  app.querySelectorAll("[data-memore]").forEach(b => (b.onclick = async () => {
+    const tb = b.dataset.memore, key = tb === "professors" ? "pf" : "un";
+    b.disabled = true; b.textContent = t("loading");
+    const { data, error } = await mePage(tb, d[key].length);
+    if (error) { b.disabled = false; return toast(t("loadFail")); }
+    d[key].push(...data); render();
   }));
   app.querySelectorAll("[data-mdel]").forEach(b => (b.onclick = async () => {
     const [kind, id] = b.dataset.mdel.split("|");
@@ -1481,7 +1543,7 @@ function renderMe(app) {
     else if (kind === "school") ok = !(await sb.from("school_ratings").delete().eq("id", id)).error;
     else try { await api("delete-exam", { id }); } catch { ok = false; }
     if (!ok) return toast(t("delFail"));
-    invalidate("me", "myrev", "revs", "profs", "school", "exams"); toast(t("deleted")); render();
+    invalidate("me", "myrev", "mysr", "revs", "profs", "school", "exams"); toast(t("deleted")); render();
   }));
   app.querySelectorAll("[data-odel]").forEach(b => (b.onclick = () => { const [k, id] = b.dataset.odel.split("|"); deleteOwn(k, id); }));
   $("#me-out").onclick = async () => { await sb.auth.signOut(); toast(t("signedOut")); go("home"); };
@@ -1534,9 +1596,9 @@ async function loadAdmin() {
   te.forEach(r => (targets["exam|" + r.id] = { text: r.memo || "", title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id, hidden: r.status === "hidden", table: "exams" }));
   const hidden = [
     ...hp.data.map(p => ({ id: p.id, table: "professors", text: "", title: `${t("adminProfPage")}：${pName({ name: p.name || "", en: p.name_en || "" })}（${uName(uniById(p.university_id))} ${p.dept}）`, href: "" })),
-    ...hr.data.map(r => ({ id: r.id, table: "reviews", text: r.body, title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id })),
-    ...hs.data.map(r => ({ id: r.id, table: "school_ratings", text: r.body || "", title: uName(uniById(r.university_id)), href: "#school." + r.university_id })),
-    ...he.data.map(r => ({ id: r.id, table: "exams", text: r.memo || "", title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id })),
+    ...hr.data.map(r => ({ id: r.id, kind: "review", table: "reviews", text: r.body, title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id })),
+    ...hs.data.map(r => ({ id: r.id, kind: "school", table: "school_ratings", text: r.body || "", title: uName(uniById(r.university_id)), href: "#school." + r.university_id })),
+    ...he.data.map(r => ({ id: r.id, kind: "exam", table: "exams", text: r.memo || "", title: `${names[r.professor_id] ? pName(names[r.professor_id]) : ""}　${r.course}`, href: "#p." + r.professor_id })),
   ];
   return { reports: rep.data, removals: rem.data, claims: cl.data, targets, hidden, names, revN };
 }
@@ -1570,6 +1632,7 @@ function renderAdmin(app) {
       <div class="l1"><b>${esc(K[g.kind] || g.kind)}</b>${tg ? `<a href="${tg.href}">${esc(tg.title)}</a>` : `<span class="sub">${esc(t("targetGone"))}</span>`}<span class="mark ${tg && tg.hidden ? "" : "warn"}">${esc(t("nReports", g.list.length))}</span></div>
       ${tg && tg.text ? `<p class="quote">${esc(tg.text)}</p>` : ""}
       <ul class="small">${g.list.map(r => `<li>${esc(R[r.reason] || r.reason)}${r.note ? `：${esc(str(r.note, 200))}` : ""} <span class="sub">${fmtDate(r.created_at)}</span></li>`).join("")}</ul>
+      <div class="row">${tg ? adminHide(tg.table, g.id, null, tg.hidden) + (TBL[g.kind] ? adminDel(g.kind, g.id) : "") : ""}<button class="btn sm" data-rdis="${esc(g.kind)}|${esc(g.id)}">${esc(t("dismissRep"))}</button></div>
     </article>`; }).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noReports"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminRemovals"))} ${d.removals.length}</button></div>
@@ -1582,7 +1645,7 @@ function renderAdmin(app) {
     </article>`).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noRemovals"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("adminHidden"))} ${d.hidden.length}</button></div>
-    ${d.hidden.length ? d.hidden.map(h => `<article class="adm"><div class="l1">${h.href ? `<a href="${h.href}">${esc(h.title)}</a>` : `<b>${esc(h.title)}</b>`}</div>${h.text ? `<p class="quote">${esc(h.text)}</p>` : ""}<div class="row">${adminHide(h.table, h.id, null, true)}</div></article>`).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noHidden"))}</div>`}
+    ${d.hidden.length ? d.hidden.map(h => `<article class="adm"><div class="l1">${h.href ? `<a href="${h.href}">${esc(h.title)}</a>` : `<b>${esc(h.title)}</b>`}</div>${h.text ? `<p class="quote">${esc(h.text)}</p>` : ""}<div class="row">${adminHide(h.table, h.id, null, true)}${h.kind ? adminDel(h.kind, h.id) : ""}</div></article>`).join("") : `<div class="notice" style="margin-top:12px">${esc(t("noHidden"))}</div>`}
   </section>
   <section><div class="tabs"><button aria-selected="true">${esc(t("importTitle"))}</button></div>
     <p class="small">${esc(t("importLead"))}</p>

@@ -53,7 +53,7 @@ function route() {
   if (["u", "p", "rate", "add", "school", "srate", "exam", "removal"].includes(v)) return { v: v === "u" ? "uni" : v === "p" ? "prof" : v, id };
   if (["help", "terms", "privacy", "cookies", "copyright", "contact"].includes(v)) return { v: "legal", id: v };
   if (["guidelines", "admin", "faculty", "adduni", "me"].includes(v)) return { v };
-  if (v === "login" || v === "signup") return { v: "login", id: v };
+  if (["login", "signup", "reset", "newpw"].includes(v)) return { v: "login", id: v };
   return { v: "home" };
 }
 function go(h) { if (location.hash === "#" + h) render(); else location.hash = h; }
@@ -1121,26 +1121,89 @@ function renderRemoval(app, pid) {
 /* ===================================================================
    ログイン・新規登録（Googleアカウント／メールアドレスに届くリンク）
    =================================================================== */
+/* ---------- パスワード ----------
+   ・10文字以上、英字と数字の両方を含む、メールアドレスの一部をそのまま使わない
+   ・過去の情報流出で出回っているパスワードは使えない（Have I Been Pwned の照合サービス。
+     パスワードそのものは送らず、ハッシュ値の先頭5文字だけを送って照合する方式） */
+const pwRules = (pw, email) => {
+  const local = String(email || "").split("@")[0].toLowerCase();
+  return [
+    ["pwLen", pw.length >= 10 && pw.length <= 72],
+    ["pwMix", /[A-Za-z]/.test(pw) && /\d/.test(pw)],
+    ["pwNoEmail", !(local.length >= 4 && pw.toLowerCase().includes(local))],
+  ];
+};
+async function pwLeaked(pw) {
+  try {
+    const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(pw));
+    const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 5000);
+    const r = await fetch("https://api.pwnedpasswords.com/range/" + hex.slice(0, 5), { headers: { "Add-Padding": "true" }, signal: ctl.signal });
+    if (!r.ok) return false;
+    const tail = hex.slice(5);
+    return (await r.text()).split("\n").some(l => { const [h, n] = l.trim().split(":"); return h === tail && Number(n) > 0; });
+  } catch { return false; } // 照合できないときは止めない（ほかの条件で守る）
+}
+const pwField = (id, ac, label) => `<label class="lb small" for="${id}"><b>${esc(label)}</b></label>
+  <div class="pwrow"><input id="${id}" type="password" autocomplete="${ac}" class="box" maxlength="72" spellcheck="false" autocapitalize="off"><button type="button" class="pweye" data-eye="${id}" aria-label="${esc(t("pwShow"))}" aria-pressed="false">${esc(t("pwShowS"))}</button></div>`;
+const pwRuleList = () => `<ul class="pwrules small" id="pw-rules">${["pwLen", "pwMix", "pwNoEmail", "pwLeak"].map(k => `<li data-r="${k}">${esc(t(k))}</li>`).join("")}</ul>`;
+function bindPwUi(root, emailFn) {
+  root.querySelectorAll("[data-eye]").forEach(b => (b.onclick = () => {
+    const i = root.querySelector("#" + b.dataset.eye), show = i.type === "password";
+    i.type = show ? "text" : "password"; b.setAttribute("aria-pressed", String(show)); b.textContent = show ? t("pwHideS") : t("pwShowS");
+  }));
+  const pw = root.querySelector("#pw-new"), list = root.querySelector("#pw-rules");
+  if (pw && list) pw.addEventListener("input", () => {
+    for (const [k, ok] of pwRules(pw.value, emailFn())) list.querySelector(`[data-r="${k}"]`).classList.toggle("ok", ok && !!pw.value);
+  });
+}
+async function checkNewPw(pw, pw2, email, setMsg) {
+  const bad = pwRules(pw, email).find(([, ok]) => !ok);
+  if (bad) { setMsg(t("ePw_" + bad[0]), 1); return false; }
+  if (pw !== pw2) { setMsg(t("ePwMatch"), 1); return false; }
+  setMsg(t("pwChecking"));
+  if (await pwLeaked(pw)) { setMsg(t("ePwLeak"), 1); return false; }
+  return true;
+}
+const authErr = (error, su) => {
+  const m = String((error && error.message) || "").toLowerCase();
+  if (error && (error.status === 429 || m.includes("rate") || m.includes("too many"))) return t("tooMany");
+  if (m.includes("invalid login credentials")) return t("eLogin");
+  if (m.includes("email not confirmed")) return t("eNotConfirmed");
+  if (m.includes("already registered") || m.includes("already been registered")) return t("eRegistered");
+  if (m.includes("weak") || m.includes("pwned") || m.includes("leaked")) return t("ePwLeak");
+  if (m.includes("password should")) return t("ePw_pwLen");
+  if (m.includes("same") && m.includes("password")) return t("ePwSame");
+  return su ? t("authFailS") : t("authFail");
+};
+
 function renderLogin(app, mode) {
+  if (mode === "newpw") return renderNewPw(app);
+  if (mode === "reset") return renderReset(app);
   const su = mode === "signup";
   if (S.AUTH === "in") { app.innerHTML = `<section class="auth-card"><h1>${esc(su ? t("signupTitle") : t("loginTitle"))}</h1><div class="notice"><b>${esc(t("signedInAs", (S.ME && S.ME.name) || t("signedIn")))}</b></div><a class="btn" href="#home">${esc(t("backTop"))}</a></section>`; return; }
+  const note = S.authNote; S.authNote = "";
   app.innerHTML = `<section class="auth-card">
     <div class="tabs" role="tablist"><a role="tab" href="#login" aria-selected="${!su}">${esc(t("loginTitle"))}</a><a role="tab" href="#signup" aria-selected="${su}">${esc(t("signupTitle"))}</a></div>
+    ${note ? `<div class="notice"><b>${esc(note)}</b></div>` : ""}
     ${su ? `<label class="agree"><input type="checkbox" id="lg-agree">${esc(t("agreeA"))}<a href="#terms">${esc(t("fTerms"))}</a>${esc(t("agreeB"))}<a href="#privacy">${esc(t("fPrivacy"))}</a>${esc(t("agreeC"))}</label>` : ""}
     <button type="button" class="btn wide" id="lg-google">${esc(t("google"))}</button>
     <div class="or"><span>${esc(t("or"))}</span></div>
     <form id="lg-form" novalidate>
       <label class="lb small" for="lg-email"><b>${esc(t("emailL"))}</b></label>
-      <input id="lg-email" type="email" autocomplete="email" class="box" maxlength="120">
+      <input id="lg-email" type="email" autocomplete="${su ? "email" : "username"}" class="box" maxlength="120" spellcheck="false" autocapitalize="off">
       ${su ? `<p class="small sub">${esc(t("anyEmail"))}</p>` : ""}
-      <button class="btn solid wide" type="submit" id="lg-send">${esc(su ? t("sendSignup") : t("sendLogin"))}</button>
-      <p class="small sub">${esc(t("noPw"))}${su ? " " + esc(t("signupNote")) : ""}</p>
+      ${su ? pwField("pw-new", "new-password", t("pwL")) + pwRuleList() + pwField("pw-new2", "new-password", t("pw2L")) : pwField("pw-cur", "current-password", t("pwL"))}
+      <button class="btn solid wide" type="submit" id="lg-send">${esc(su ? t("doSignup") : t("doLogin"))}</button>
+      ${su ? `<p class="small sub">${esc(t("signupMailNote"))} ${esc(t("signupNote"))}</p>` : `<p class="small"><a href="#reset">${esc(t("forgotPw"))}</a></p><p class="small sub">${esc(t("oldLinkUsers"))}</p>`}
       <div class="msg" id="lg-msg" aria-live="polite"></div>
     </form>
+    <p class="small sub"><a href="#privacy">${esc(t("pwSafetyLink"))}</a></p>
     <p class="small switch">${su ? `${esc(t("haveAcct"))} <a href="#login">${esc(t("loginTitle"))}</a>` : `${esc(t("noAcct"))} <a href="#signup">${esc(t("signupTitle"))}</a>`}</p>
   </section>`;
   const msg = $("#lg-msg"), setMsg = (m, ng) => { msg.textContent = m; msg.classList.toggle("ng", !!ng); };
   const agreed = () => !su || $("#lg-agree").checked;
+  bindPwUi(app, () => $("#lg-email").value);
   $("#lg-google").onclick = async () => {
     if (!agreed()) return setMsg(t("eAgreeS"), 1);
     if (su) try { sessionStorage.setItem("kohyo.agreed", TERMS_VERSION); } catch {}
@@ -1149,20 +1212,82 @@ function renderLogin(app, mode) {
   };
   $("#lg-form").onsubmit = async e => {
     e.preventDefault();
+    if (S.busy) return;
     const em = $("#lg-email").value.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return setMsg(t("eEmail"), 1);
     if (!agreed()) return setMsg(t("eAgreeS"), 1);
-    $("#lg-send").disabled = true;
-    if (su) try { localStorage.setItem("kohyo.agreed", TERMS_VERSION); } catch {}
-    const { error } = await sb.auth.signInWithOtp({ email: em, options: { shouldCreateUser: su, emailRedirectTo: location.origin + location.pathname } });
-    $("#lg-send").disabled = false;
-    if (error) {
-      const m = String(error.message || "").toLowerCase();
-      if (!su && (m.includes("signups not allowed") || m.includes("user not found"))) return setMsg(t("emailNotFound"), 1);
-      if (error.status === 429 || m.includes("rate")) return setMsg(t("tooMany"), 1);
-      return setMsg(t("authFail"), 1);
-    }
-    setMsg(t("linkSent"));
+    const btn = $("#lg-send"); S.busy = true; btn.disabled = true;
+    try {
+      if (!su) {
+        const pw = $("#pw-cur").value;
+        if (!pw) return setMsg(t("ePwEmpty"), 1);
+        setMsg(t("loggingIn"));
+        const { error } = await sb.auth.signInWithPassword({ email: em, password: pw });
+        if (error) {
+          setMsg(authErr(error), 1);
+          if (/not confirmed/i.test(error.message || "")) {
+            msg.insertAdjacentHTML("beforeend", ` <button type="button" class="btn sm" id="lg-resend">${esc(t("resendConfirm"))}</button>`);
+            $("#lg-resend").onclick = async () => { const r = await sb.auth.resend({ type: "signup", email: em, options: { emailRedirectTo: location.origin + location.pathname } }); setMsg(r.error ? authErr(r.error) : t("confirmResent"), !!r.error); };
+          }
+          return;
+        }
+        $("#pw-cur").value = "";
+        toast(t("loggedIn")); go("home");
+        return;
+      }
+      const pw = $("#pw-new").value, pw2 = $("#pw-new2").value;
+      if (!(await checkNewPw(pw, pw2, em, setMsg))) return;
+      try { localStorage.setItem("kohyo.agreed", TERMS_VERSION); } catch {}
+      const { data, error } = await sb.auth.signUp({ email: em, password: pw, options: { emailRedirectTo: location.origin + location.pathname } });
+      if (error) return setMsg(authErr(error, 1), 1);
+      // すでに登録済みのアドレスでは、登録済みかどうかを外に漏らさないよう、Supabase は空の結果を返す
+      if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return setMsg(t("eRegistered"), 1);
+      $("#pw-new").value = $("#pw-new2").value = "";
+      if (data && data.session) { toast(t("loggedIn")); go("home"); return; }
+      app.querySelector("#lg-form").innerHTML = `<div class="notice"><b>${esc(t("confirmSent"))}</b><p class="small">${esc(t("confirmSentNote", em))}</p></div>`;
+    } finally { S.busy = false; if (btn.isConnected) btn.disabled = false; }
+  };
+}
+/* パスワードを忘れたとき：再設定用のメールを送る */
+function renderReset(app) {
+  app.innerHTML = `<section class="auth-card"><h1>${esc(t("resetTitle"))}</h1><p class="small">${esc(t("resetLead"))}</p>
+    <form id="rs-form" novalidate><label class="lb small" for="rs-email"><b>${esc(t("emailL"))}</b></label>
+    <input id="rs-email" type="email" autocomplete="email" class="box" maxlength="120">
+    <button class="btn solid wide" type="submit" id="rs-send">${esc(t("resetSend"))}</button><div class="msg" id="rs-msg" aria-live="polite"></div></form>
+    <p class="small switch"><a href="#login">${esc(t("backLogin"))}</a></p></section>`;
+  const msg = $("#rs-msg"), setMsg = (m, ng) => { msg.textContent = m; msg.classList.toggle("ng", !!ng); };
+  $("#rs-form").onsubmit = async e => {
+    e.preventDefault();
+    const em = $("#rs-email").value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return setMsg(t("eEmail"), 1);
+    $("#rs-send").disabled = true;
+    try { localStorage.setItem("kohyo.reset", String(Date.now())); } catch {}
+    const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname });
+    $("#rs-send").disabled = false;
+    if (error && (error.status === 429 || /rate/i.test(error.message || ""))) return setMsg(t("tooMany"), 1);
+    setMsg(t("resetSent")); // 登録の有無は知らせない（他人のアドレスが登録済みか探れないように）
+  };
+}
+/* 新しいパスワードを決める（再設定メールから戻ったとき・マイページから変更するとき） */
+function renderNewPw(app) {
+  if (S.AUTH !== "in") { app.innerHTML = `<section class="auth-card"><h1>${esc(t("newPwTitle"))}</h1><div class="notice"><b>${esc(t("newPwNeedLink"))}</b></div><a class="btn" href="#reset">${esc(t("resetTitle"))}</a></section>`; return; }
+  app.innerHTML = `<section class="auth-card"><h1>${esc(t("newPwTitle"))}</h1><p class="small">${esc(t("newPwLead"))}</p>
+    <form id="np-form" novalidate>${pwField("pw-new", "new-password", t("pwNewL"))}${pwRuleList()}${pwField("pw-new2", "new-password", t("pw2L"))}
+    <button class="btn solid wide" type="submit" id="np-send">${esc(t("newPwSave"))}</button><div class="msg" id="np-msg" aria-live="polite"></div></form></section>`;
+  const msg = $("#np-msg"), setMsg = (m, ng) => { msg.textContent = m; msg.classList.toggle("ng", !!ng); };
+  const email = (S.SESSION && S.SESSION.user && S.SESSION.user.email) || "";
+  bindPwUi(app, () => email);
+  $("#np-form").onsubmit = async e => {
+    e.preventDefault();
+    const pw = $("#pw-new").value, pw2 = $("#pw-new2").value;
+    $("#np-send").disabled = true;
+    try {
+      if (!(await checkNewPw(pw, pw2, email, setMsg))) return;
+      const { error } = await sb.auth.updateUser({ password: pw });
+      if (error) return setMsg(authErr(error), 1);
+      $("#pw-new").value = $("#pw-new2").value = "";
+      toast(t("newPwDone")); go("me");
+    } finally { const b = $("#np-send"); if (b) b.disabled = false; }
   };
 }
 function renderConsent(app) {
@@ -1283,7 +1408,17 @@ async function deleteOwn(kind, id, uni) {
    マイページ・退会
    =================================================================== */
 async function loadMe() {
-  const q = (tb, cols) => sb.from(tb).select(cols).eq(tb === "professors" || tb === "universities" ? "created_by" : "user_id", S.MYID).order("created_at", { ascending: false });
+  // Supabase は1回に最大1000件しか返さないので、1000件ずつ続けて読み、全件をそろえる
+  const q = async (tb, cols) => {
+    const all = [];
+    for (let from = 0; from < 100000; from += 1000) {
+      const r = await sb.from(tb).select(cols).eq(tb === "professors" || tb === "universities" ? "created_by" : "user_id", S.MYID).order("created_at", { ascending: false }).order("id").range(from, from + 999);
+      if (r.error) return r;
+      all.push(...r.data);
+      if (r.data.length < 1000) return { data: all, error: null };
+    }
+    return { data: all, error: null };
+  };
   const [rv, sc, ex, pf, un, rp, rr] = await Promise.all([
     q("reviews", "id,professor_id,course,quality,status,created_at"), q("school_ratings", "id,university_id,status,created_at,rep,loc,car,fac,net,food,club,life,safe,happy"),
     q("exams", "id,professor_id,course,year,status,created_at"), q("professors", "id,name,name_en,university_id,created_at"), q("universities", "id,name,name_en,created_at"),
@@ -1292,7 +1427,7 @@ async function loadMe() {
   for (const x of [rv, sc, ex, pf, un, rp, rr]) if (x.error) throw x.error;
   const pids = [...new Set([...rv.data, ...ex.data].map(r => r.professor_id))];
   const names = {};
-  if (pids.length) { const { data } = await sb.from("professors").select("id,name,name_en").in("id", pids); (data || []).forEach(p => (names[p.id] = { name: p.name || "", en: p.name_en || "" })); }
+  for (let i = 0; i < pids.length; i += 200) { const { data } = await sb.from("professors").select("id,name,name_en").in("id", pids.slice(i, i + 200)); (data || []).forEach(p => (names[p.id] = { name: p.name || "", en: p.name_en || "" })); }
   return { rv: rv.data, sc: sc.data, ex: ex.data, pf: pf.data, un: un.data, nRep: rp.data.length, nRem: rr.data.length, rems: rr.data, names };
 }
 function renderMe(app) {
@@ -1323,7 +1458,8 @@ function renderMe(app) {
   ${sec(t("meAddedUnis"), d.un.length, d.un.length ? mlist(d.un.map(u => `<li><a href="#u.${esc(u.id)}">${esc(S.LANG === "en" ? u.name_en || u.name : u.name)}</a><button class="del" data-odel="uni|${esc(u.id)}">${esc(t("del"))}</button></li>`)) : none)}
   ${sec(t("meAddedProfs"), d.pf.length, d.pf.length ? mlist(d.pf.map(p => `<li><a href="#p.${esc(p.id)}">${esc(S.LANG === "en" ? p.name_en || p.name : p.name || p.name_en)}</a><span class="sub small">${esc(uniById(p.university_id) ? uName(uniById(p.university_id)) : "")}</span><button class="del" data-odel="prof|${esc(p.id)}">${esc(t("del"))}</button></li>`)) : none)}
   ${sec(t("meRequests"), d.nRep + d.nRem, `<p class="small">${esc(t("meReported", d.nRep))}　${esc(t("meRemovals", d.nRem))}</p>${d.rems.length ? `<ul class="melist">${d.rems.map(r => `<li><span>${esc(str(r.target, 60))}</span><span class="sub small">${esc((t("scopes") || {})[r.scope] || "")}・${fmtDate(r.created_at)}</span><span class="mark ${r.status === "done" ? "ok" : "warn"}">${esc(r.status === "done" ? t("stDone") : t("stOpen"))}</span></li>`).join("")}</ul>` : ""}`)}
-  <section class="mesec"><div class="row"><button class="btn" id="me-out">${esc(t("signOut"))}</button></div></section>
+  ${S.ME && S.ME.provider !== "google" ? `<section class="mesec"><h2>${esc(t("mePwTitle"))}</h2><p class="small">${esc(t("mePwLead"))}</p><div><a class="btn" href="#newpw">${esc(t("mePwChange"))}</a></div></section>` : ""}
+  <section class="mesec"><h2>${esc(t("signOut"))}</h2><p class="small">${esc(t("meOutLead"))}</p><div><button class="btn" id="me-out">${esc(t("signOut"))}</button></div></section>
   <section class="mesec danger"><h2>${esc(t("leaveTitle"))}</h2><p class="small">${esc(t("leaveLead"))}</p><div><button class="btn" id="me-leave">${esc(t("leave"))}</button></div></section>`;
   $("#me-name").textContent = (S.ME && S.ME.name) || t("signedIn");
   app.querySelectorAll(".memore").forEach(b => (b.onclick = () => {
@@ -1806,10 +1942,19 @@ async function boot() {
   initBar(); paintStatic(); renderAuth();
   if (!configured) { render(); return; }
   render();
+  const fromLink = /[?&](code|error)=/.test(location.search);
   const { data } = await sb.auth.getSession();
-  if (location.search.includes("code=")) history.replaceState(null, "", location.pathname + location.hash);
+  if (fromLink) history.replaceState(null, "", location.pathname + location.hash);
+  // メールのリンクから戻ったとき
+  //  ・パスワード再設定のリンク → 新しいパスワードを決める画面へ
+  //  ・登録確認のリンクを、登録したときとは別のブラウザ（メールアプリ内のブラウザなど）で開いた → 確認は済んでいるのでパスワードでログインしてもらう
+  let wantReset = false; try { const r = Number(localStorage.getItem("kohyo.reset") || 0); wantReset = r && Date.now() - r < 3600e3; } catch {}
+  if (fromLink && data.session && wantReset) { try { localStorage.removeItem("kohyo.reset"); } catch {} location.hash = "newpw"; }
+  else if (fromLink && data.session) { location.hash = "home"; }
+  else if (fromLink && !data.session) { S.authNote = t("linkOtherBrowser"); location.hash = "login"; }
   await applySession(data.session);
   sb.auth.onAuthStateChange((ev, session) => {
+    if (ev === "PASSWORD_RECOVERY") { try { localStorage.removeItem("kohyo.reset"); } catch {} applySession(session).then(() => go("newpw")); return; }
     if (ev === "SIGNED_IN" || ev === "SIGNED_OUT" || ev === "USER_UPDATED") { if ((session && session.user.id) !== S.MYID || ev === "SIGNED_OUT") applySession(session); }
     else if (ev === "TOKEN_REFRESHED") S.SESSION = session;
   });

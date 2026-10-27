@@ -236,7 +236,7 @@ ja:{
   ["5. 第三者への提供",["運営者は、次の場合を除き、本人の同意なく個人データを第三者に提供しません。","・法令に基づく場合","・人の生命、身体または財産の保護のために必要があり、本人の同意を得ることが困難な場合","・その他、個人情報保護法で認められる場合"]],
   ["6. 業務の委託",["運営者は、利用目的の達成に必要な範囲で、個人データの取扱いを外部の事業者に委託します。主な委託先は、サーバ・データベースの提供事業者、ファイル保管の提供事業者、AIサービスの提供事業者、広告配信事業者です。","委託先とは適切な契約を結び、必要かつ適切な監督を行います。"]],
   ["7. 外国にある事業者への委託",["委託先の一部は、日本国外（【国名：例 アメリカ合衆国】）に所在し、または国外のサーバで個人データを保管・処理します。","委託先は、個人情報保護法第28条第1項に定める基準に適合する体制を整備している事業者に限定しています。運営者は、委託先による個人データの適正な取扱いを確保するために必要な措置を講じます。","委託先の所在国の個人情報保護制度については、個人情報保護委員会が公表している情報をご確認ください。本人からの求めに応じて、必要な措置に関する情報を提供します。"]],
-  ["8. 安全管理措置",["組織的安全管理措置：個人データの取扱いの責任者を定め、取扱状況を定期的に点検します。","人的安全管理措置：取扱いに関わる者に、秘密保持と適正な取扱いを徹底します。","物理的安全管理措置：個人データを取り扱う機器の盗難・紛失を防止します。","技術的安全管理措置：アクセス制御、通信の暗号化、不正アクセス対策を行います。","外的環境の把握：外国で個人データを取り扱う場合は、その国の個人情報保護制度を把握したうえで措置を講じます。"]],
+  ["8. 安全管理措置",["組織的安全管理措置：個人データの取扱いの責任者を定め、取扱状況を定期的に点検します。","人的安全管理措置：取扱いに関わる者に、秘密保持と適正な取扱いを徹底します。","物理的安全管理措置：個人データを取り扱う機器の盗難・紛失を防止します。","技術的安全管理措置：アクセス制御、通信の暗号化、不正アクセス対策を行います。","外的環境の把握：外国で個人データを取り扱う場合は、その国の個人情報保護制度を把握したうえで措置を講じます。","パスワードの取扱い：パスワードは、認証基盤（Supabase Auth）でbcryptという方式により一方向に変換（ハッシュ化）して保存し、運営者を含め誰も元のパスワードを見ることはできません。通信はすべて暗号化（HTTPS）しています。パスワードは10文字以上で英字と数字を含むものに限り、過去の情報流出で出回っているパスワードは登録できないようにしています（照合の際、パスワードそのものは外部に送りません）。ログインの試行回数には上限を設けています。","利用者へのお願い：ほかのサービスと同じパスワードを使い回さないでください。パスワードを忘れた場合は、ログイン画面の「パスワードを忘れた方」から再設定できます。運営者がメール等でパスワードをお尋ねすることはありません。"]],
   ["9. 開示等の請求",["本人は、運営者が保有する自己の個人データについて、利用目的の通知、開示（電磁的記録による提供を含みます）、訂正・追加・削除、利用停止・消去、第三者提供の停止、第三者提供記録の開示を請求できます。","請求は、お問い合わせのページにある連絡先までご連絡ください。本人確認を行ったうえで、法令に従い遅滞なく対応します。手数料はいただきません。"]],
   ["10. 未成年の方の情報",["16歳未満の方は、保護者の同意を得たうえで本サービスを利用してください。"]],
   ["11. Cookie等と外部送信",["本サービスでは、Cookie等を利用し、利用者の情報を外部の事業者に送信することがあります。送信される情報、送信先、利用目的は「利用者情報の外部送信について」のページで公表しています（電気通信事業法第27条の12）。","Cookie等の識別子は、個人情報保護法上の個人関連情報にあたることがあります。提供先がこれを個人データとして取得することが想定される場合は、法令に従い、本人の同意が得られていることを確認したうえで提供します。"]],
@@ -308,7 +308,7 @@ en:{
   ["5. Provision to third parties",["We do not provide personal data to third parties without consent, except:","• when required by law","• when necessary to protect a person’s life, body or property and consent is difficult to obtain","• in other cases permitted under the APPI"]],
   ["6. Outsourcing",["We outsource the handling of personal data to the extent necessary, mainly to server and database providers, file storage providers, AI service providers and ad delivery providers.","We sign appropriate contracts with them and supervise them as necessary."]],
   ["7. Outsourcing to businesses outside Japan",["Some contractors are located outside Japan ([country, e.g. the United States]) or store and process personal data on servers outside Japan.","We only use contractors that have systems meeting the standards of Article 28(1) of the APPI, and take the measures necessary to ensure they handle personal data properly.","For the personal information protection systems of those countries, see the information published by Japan’s Personal Information Protection Commission. We provide information on these measures on request."]],
-  ["8. Security measures",["Organizational: we appoint a person responsible for personal data and regularly review how it is handled.","Human: everyone handling data is bound to confidentiality and proper handling.","Physical: we prevent theft or loss of devices handling personal data.","Technical: we use access control, encrypted communication and protection against unauthorized access.","Understanding foreign environments: when handling personal data abroad, we take measures based on that country’s personal information protection system."]],
+  ["8. Security measures",["Organizational: we appoint a person responsible for personal data and regularly review how it is handled.","Human: everyone handling data is bound to confidentiality and proper handling.","Physical: we prevent theft or loss of devices handling personal data.","Technical: we use access control, encrypted communication and protection against unauthorized access.","Understanding foreign environments: when handling personal data abroad, we take measures based on that country’s personal information protection system.","Passwords: passwords are stored by our authentication provider (Supabase Auth) only as one-way bcrypt hashes; no one, including the Operator, can see your password. All traffic is encrypted (HTTPS). Passwords must be at least 10 characters and contain letters and numbers, and passwords known from past data breaches are rejected (your password itself is never sent for this check). Login attempts are rate-limited.","Please do not reuse a password from another service. If you forget your password, reset it from “Forgot your password?” on the login page. The Operator will never ask for your password by email or otherwise."]],
   ["9. Requests regarding your data",["You may request notification of the purposes of use, disclosure (including electronic records), correction, addition or deletion, suspension of use or erasure, suspension of third-party provision, and disclosure of third-party provision records for personal data we hold about you.","Send requests to the address on the Contact page. After verifying your identity, we respond without delay in accordance with the law. No fee is charged."]],
   ["10. Minors",["Users under 16 must obtain consent from a parent or guardian before using the Service."]],
   ["11. Cookies and external transmission",["The Service uses cookies and may send user information to external businesses. What is sent, where, and why is published on the “External transmission of user information” page (Telecommunications Business Act, Article 27-12).","Cookie identifiers may count as “personally referable information” under the APPI. Where a recipient is expected to obtain them as personal data, we provide them only after confirming, as required by law, that the person has consented."]],
@@ -470,6 +470,48 @@ Object.assign(T.en,{
  importShort:"Include junior colleges (F2)", importRun:"Import", importParsed:n=>`Read ${n} schools.`, importDone:n=>`Added ${n} schools.`, importNone:"No universities found. Please check the file.", importing:(i,n)=>`Saving… (${i} / ${n})`,
  noUnisYet:"No universities yet. The admin can import the list from the Admin page.",
  requestProf:"Request a professor"
+});
+Object.assign(T.ja,{
+ pwL:"パスワード", pw2L:"パスワード（確認のためもう一度）", pwNewL:"新しいパスワード", pwShow:"パスワードを表示する", pwShowS:"表示", pwHideS:"隠す",
+ pwLen:"10文字以上", pwMix:"英字と数字の両方を含む", pwNoEmail:"メールアドレスの一部をそのまま使わない", pwLeak:"過去の情報流出で出回っているパスワードは使えません",
+ ePw_pwLen:"パスワードは10文字以上（72文字まで）にしてください。", ePw_pwMix:"パスワードには英字と数字の両方を含めてください。", ePw_pwNoEmail:"メールアドレスの一部をそのままパスワードに使わないでください。",
+ ePwMatch:"確認用のパスワードが一致しません。", ePwLeak:"このパスワードは過去の情報流出で出回っているため使えません。別のパスワードにしてください。", ePwEmpty:"パスワードを入力してください。", ePwSame:"今のパスワードと同じです。別のパスワードにしてください。",
+ pwChecking:"安全なパスワードか確認しています…", doLogin:"ログイン", doSignup:"登録する", loggingIn:"ログインしています…", loggedIn:"ログインしました",
+ eLogin:"メールアドレスかパスワードが違います。", eNotConfirmed:"メールアドレスの確認がまだ済んでいません。登録時に届いたメールのリンクを開いてください。",
+ eRegistered:"このメールアドレスはすでに登録されています。ログインしてください。パスワードを設定していない場合は「パスワードを忘れた方」から設定できます。",
+ authFailS:"登録できませんでした。時間をおいてもう一度お試しください。", resendConfirm:"確認メールを送り直す", confirmResent:"確認メールを送り直しました。",
+ signupMailNote:"登録後、確認のメールが届きます。メールのリンクを開くと登録が完了します。",
+ confirmSent:"確認のメールを送りました。", confirmSentNote:e=>`${e} に届いたメールのリンクを開くと、登録が完了します。リンクを開いた後は、メールアドレスとパスワードでログインできます。メールが届かない場合は、迷惑メールのフォルダもご確認ください。`,
+ forgotPw:"パスワードを忘れた方", oldLinkUsers:"以前メールのリンクで登録した方は、「パスワードを忘れた方」からパスワードを設定するとログインできます。",
+ pwSafetyLink:"パスワードと個人情報の取扱い（プライバシーポリシー 8. 安全管理措置）",
+ resetTitle:"パスワードの再設定", resetLead:"登録したメールアドレスを入力してください。パスワードを決め直すためのリンクをお送りします。", resetSend:"再設定用のメールを送る",
+ resetSent:"このメールアドレスが登録されていれば、再設定用のメールを送りました。メールのリンクを、このページを開いているのと同じブラウザで開いてください。", backLogin:"ログインに戻る",
+ newPwTitle:"新しいパスワード", newPwLead:"新しいパスワードを決めてください。", newPwSave:"パスワードを保存する", newPwDone:"パスワードを変更しました",
+ newPwNeedLink:"パスワードを決め直すには、再設定用のメールのリンクから開いてください。",
+ linkOtherBrowser:"メールのリンクを確認しました。登録したときとは別のブラウザで開かれたため、自動ではログインできませんでした。メールアドレスとパスワードでログインしてください。",
+ mePwTitle:"パスワード", mePwLead:"ログインに使うパスワードを変更できます。ほかのサービスと同じパスワードは使わないでください。", mePwChange:"パスワードを変更する",
+ meOutLead:"この端末（ブラウザ）からログアウトします。共用のパソコンを使ったときは、必ずログアウトしてください。"
+});
+Object.assign(T.en,{
+ pwL:"Password", pw2L:"Password (again, to confirm)", pwNewL:"New password", pwShow:"Show password", pwShowS:"Show", pwHideS:"Hide",
+ pwLen:"At least 10 characters", pwMix:"Contains both letters and numbers", pwNoEmail:"Doesn’t reuse part of your email address", pwLeak:"Passwords exposed in past data breaches are not allowed",
+ ePw_pwLen:"Use 10 to 72 characters.", ePw_pwMix:"Include both letters and numbers.", ePw_pwNoEmail:"Don’t use part of your email address as your password.",
+ ePwMatch:"The passwords don’t match.", ePwLeak:"This password has appeared in a data breach. Please choose another one.", ePwEmpty:"Enter your password.", ePwSame:"That is your current password. Please choose a different one.",
+ pwChecking:"Checking that the password is safe…", doLogin:"Log in", doSignup:"Sign up", loggingIn:"Logging in…", loggedIn:"Logged in",
+ eLogin:"Wrong email address or password.", eNotConfirmed:"Your email address isn’t confirmed yet. Open the link in the email we sent when you signed up.",
+ eRegistered:"This email address is already registered. Please log in. If you never set a password, use “Forgot your password?”.",
+ authFailS:"Could not sign up. Please try again later.", resendConfirm:"Resend confirmation email", confirmResent:"We sent the confirmation email again.",
+ signupMailNote:"After signing up, we’ll email you a link. Open it to finish signing up.",
+ confirmSent:"We sent you a confirmation email.", confirmSentNote:e=>`Open the link in the email sent to ${e} to finish signing up. After that, log in with your email and password. If you don’t see it, check your spam folder.`,
+ forgotPw:"Forgot your password?", oldLinkUsers:"If you signed up with an email link before, set a password via “Forgot your password?” to log in.",
+ pwSafetyLink:"How we protect passwords and personal data (Privacy Policy §8)",
+ resetTitle:"Reset password", resetLead:"Enter the email address you signed up with. We’ll send you a link to choose a new password.", resetSend:"Send reset email",
+ resetSent:"If this address is registered, we sent a reset email. Open the link in the same browser you are using now.", backLogin:"Back to log in",
+ newPwTitle:"New password", newPwLead:"Choose a new password.", newPwSave:"Save password", newPwDone:"Password changed",
+ newPwNeedLink:"To choose a new password, open the link in the reset email.",
+ linkOtherBrowser:"Your email link was confirmed, but it was opened in a different browser from the one you signed up in, so we couldn’t log you in automatically. Please log in with your email and password.",
+ mePwTitle:"Password", mePwLead:"Change the password you use to log in. Don’t reuse passwords from other services.", mePwChange:"Change password",
+ meOutLead:"Log out of this device (browser). Always log out on shared computers."
 });
 export const TERMS_VERSION="2026-10-20";
 export { T, LEGAL, PREFS, ENACTED };

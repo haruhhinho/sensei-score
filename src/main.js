@@ -1719,12 +1719,29 @@ async function readCsvFile(file) {
   if (text.includes("\uFFFD")) text = new TextDecoder("shift_jis").decode(buf);
   return parseCsv(text.replace(/^\uFEFF/, ""));
 }
+// 開いたままのページが古い版のままだと、新しく受け付けるようにした学部名などが通らない。
+// 公開中の最新の画面ファイルと、いま動いている画面ファイルを見比べて、違えば再読み込みをお願いする
+async function appIsStale() {
+  try {
+    const cur = [...document.querySelectorAll('script[type="module"][src]')].map(s => new URL(s.src, location.href).pathname);
+    if (!cur.length) return false;
+    const html = await (await fetch("/", { cache: "no-store" })).text();
+    const live = [...html.matchAll(/<script[^>]+type="module"[^>]+src="([^"]+)"/g)].map(m => new URL(m[1], location.href).pathname);
+    return live.length > 0 && live.join() !== cur.join();
+  } catch { return false; }
+}
 function setupProfImport() {
   const fi = $("#pimp-file"), run = $("#pimp-run"), msg = $("#pimp-msg"), det = $("#pimp-detail");
   let plan = [], upds = [];
   fi.onchange = async () => {
     const file = fi.files[0]; run.disabled = true; plan = []; det.innerHTML = ""; if (!file) return;
     msg.classList.remove("ng"); msg.textContent = t("loading");
+    if (await appIsStale()) {
+      msg.textContent = t("staleApp"); msg.classList.add("ng");
+      det.innerHTML = `<button type="button" class="btn sm" id="pimp-reload">${esc(t("reloadNow"))}</button>`;
+      $("#pimp-reload").onclick = () => location.reload();
+      return;
+    }
     try {
       const res = await planProfImport(await readCsvFile(file));
       if (res.error) { msg.textContent = t(res.error); msg.classList.add("ng"); return; }

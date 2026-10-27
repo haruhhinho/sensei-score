@@ -9,7 +9,8 @@ import {
 const GRADES = ["秀", "優", "良", "可", "不可"];
 const TERMS = ["前期", "後期", "通年", "集中"];
 const KINDS = ["期末試験", "中間試験", "小テスト", "レポート課題", "その他"];
-const LOADING = () => `<div class="notice">${esc(t("loading"))}</div>`;
+// 読み込み中：ブランドの3色の線が左右に流れる
+const LOADING = () => `<div class="loading" role="status" aria-live="polite"><div class="lbar" aria-hidden="true"><i></i></div><span>${esc(t("loading"))}</span></div>`;
 const LOADFAIL = () => `<div class="notice"><b>${esc(t("loadFail"))}</b> <button class="btn sm" onclick="location.reload()">${esc(t("retry"))}</button></div>`;
 
 /* ===================================================================
@@ -424,7 +425,7 @@ function drawRevs(p, rs) {
     if (!(await askDelete(t("cfReview")))) return;
     const { error } = await sb.from("reviews").delete().eq("id", b.dataset.del);
     if (error) return toast(t("delFail"));
-    invalidate("revs:" + p.id, "profs:" + p.uni, "prof:" + p.id, "me"); toast(t("deleted")); render();
+    invalidate("myrev", "revs:" + p.id, "profs:" + p.uni, "prof:" + p.id, "me"); toast(t("deleted")); render();
   }));
 }
 
@@ -546,6 +547,10 @@ function renderRate(app, pid) {
   if (!p) { app.innerHTML = notFound(); return; }
   const u = uniById(p.uni) || { id: p.uni };
   if (S.AUTH !== "in") { app.innerHTML = `${crumb(["#p." + pid, "← " + pName(p)])}<div class="notice"><b>${esc(t("needLoginRate"))}</b>${loginLink()}</div>`; return; }
+  // 同じ先生へのレビューは1アカウント（1メールアドレス）につき1件まで
+  const mine = need("myrev:" + pid, async () => { const { data, error } = await sb.from("reviews").select("id").eq("professor_id", pid).eq("user_id", S.MYID).limit(1); if (error) throw error; return data.length > 0; });
+  if (mine === undefined) { app.innerHTML = LOADING(); return; }
+  if (mine === true) { app.innerHTML = `${crumb(["#home", t("top")], ["#p." + pid, pName(p)], [null, t("evalCrumb")])}<div class="notice"><b>${esc(t("alreadyRated"))}</b> <a href="#me">${esc(t("me"))}</a></div>`; return; }
   if (!S.form || S.form.kind !== "rate" || S.form.pid !== pid) S.form = { kind: "rate", pid, course: "", q: null, d: null, again: null, att: null, grade: "", text: "" };
   const f = S.form, rs = peek("revs:" + pid);
   const courses = Array.isArray(rs) ? [...new Set(rs.map(r => r.course))] : [];
@@ -588,7 +593,7 @@ function renderRate(app, pid) {
     try {
       const res = await api("post-review", { professorId: pid, course, quality: f.q, difficulty: f.d, again: f.again, att: f.att, grade: f.grade || null, text, lang: S.LANG });
       if (!res.ok) { setMsg(""); checkBox($("#f-check"), res.check, ta, 350); return; }
-      S.form = null; S.profCourse = ""; invalidate("revs:" + pid, "profs:" + p.uni, "prof:" + pid, "me");
+      S.form = null; S.profCourse = ""; invalidate("myrev", "revs:" + pid, "profs:" + p.uni, "prof:" + pid, "me");
       go("p." + pid); toast(t("postedAI"));
     } catch (err) { setMsg(errText(err), 1); }
     finally { S.busy = false; if (btn.isConnected) btn.disabled = false; }
@@ -1062,7 +1067,7 @@ function renderLegal(app, key) {
   app.innerHTML = `${crumb(["#home", t("top")], [null, d.title])}
   <article class="doc"><h1>${esc(d.title)}</h1>${d.lead ? `<p class="lead">${esc(d.lead)}</p>` : ""}${table}
     ${key === "about" ? `<dl class="dl">${d.secs.map(([h, it]) => `<dt>${esc(h)}</dt><dd>${it.map(esc).join("<br>")}</dd>`).join("")}</dl>`
-      : d.secs.map(([h, items]) => `<section><h2>${esc(h)}</h2>${isList && items.length > 1 ? `<ol class="${/^(第|Article)/.test(h) ? "num" : "plain"}">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ol>` : items.map(i => `<p>${esc(i)}</p>`).join("")}</section>`).join("")}
+      : d.secs.map(([h, items]) => `<section><h2>${esc(h)}</h2>${isList && items.length > 1 ? `<ol class="${/^(第|Article)/.test(h) ? "num" : "plain"}">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ol>` : items.map(i => `<p>${/^[^\s@]+@[^\s@]+\.[a-z]+$/.test(i) ? `<a class="mail" href="mailto:${esc(i)}">${esc(i)}</a>` : esc(i)}</p>`).join("")}</section>`).join("")}
     ${["terms", "privacy", "cookies", "copyright"].includes(key) ? `<p class="small sub">${esc(t("enacted"))}</p>` : ""}</article>`;
 }
 
@@ -1335,7 +1340,7 @@ function renderMe(app) {
     else if (kind === "school") ok = !(await sb.from("school_ratings").delete().eq("id", id)).error;
     else try { await api("delete-exam", { id }); } catch { ok = false; }
     if (!ok) return toast(t("delFail"));
-    invalidate("me", "revs", "profs", "school", "exams"); toast(t("deleted")); render();
+    invalidate("me", "myrev", "revs", "profs", "school", "exams"); toast(t("deleted")); render();
   }));
   app.querySelectorAll("[data-odel]").forEach(b => (b.onclick = () => { const [k, id] = b.dataset.odel.split("|"); deleteOwn(k, id); }));
   $("#me-out").onclick = async () => { await sb.auth.signOut(); toast(t("signedOut")); go("home"); };
@@ -1446,7 +1451,7 @@ function renderAdmin(app) {
   <section><div class="tabs"><button aria-selected="true">${esc(t("pimpTitle"))}</button></div>
     <p class="small">${esc(t("pimpLead"))}</p>
     <p class="small sub">${esc(t("pimpCols"))}</p>
-    <div class="row"><button class="btn sm" id="pimp-tpl">${esc(t("pimpTemplate"))}</button><input type="file" id="pimp-file" accept=".csv,text/csv"></div>
+    <div class="row"><input type="file" id="pimp-file" accept=".csv,text/csv"></div>
     <div class="row"><button class="btn sm solid" id="pimp-run" disabled>${esc(t("importRun"))}</button><span class="msg" id="pimp-msg"></span></div>
     <div class="small" id="pimp-detail"></div>
   </section>
@@ -1581,11 +1586,6 @@ async function readCsvFile(file) {
 function setupProfImport() {
   const fi = $("#pimp-file"), run = $("#pimp-run"), msg = $("#pimp-msg"), det = $("#pimp-detail");
   let plan = [], upds = [];
-  $("#pimp-tpl").onclick = () => {
-    const csv = "\uFEFF大学,氏名,ふりがな,英語表記,学部,学部（英語）\n東都大学,山田 太郎,やまだ たろう,Taro Yamada,経済学部,Faculty of Economics\n";
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "teachers-template.csv"; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  };
   fi.onchange = async () => {
     const file = fi.files[0]; run.disabled = true; plan = []; det.innerHTML = ""; if (!file) return;
     msg.classList.remove("ng"); msg.textContent = t("loading");

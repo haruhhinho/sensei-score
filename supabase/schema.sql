@@ -107,7 +107,8 @@ create table if not exists public.reviews (
   created_at timestamptz not null default now()
 );
 create index if not exists reviews_prof_idx on public.reviews(professor_id);
-create unique index if not exists reviews_one_per_course on public.reviews(user_id, professor_id, course) where user_id is not null;
+drop index if exists public.reviews_one_per_course;
+create unique index if not exists reviews_one_per_prof on public.reviews(user_id, professor_id) where user_id is not null;
 alter table public.reviews enable row level security;
 drop policy if exists rev_own_read on public.reviews;
 drop policy if exists rev_own_delete on public.reviews;

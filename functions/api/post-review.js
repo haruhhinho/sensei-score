@@ -14,7 +14,8 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const grade = GRADES.includes(b.grade) ? b.grade : null;
   const prof = await db(env, `professors?id=eq.${professorId}&status=eq.active&select=id`);
   if (!prof.length) return fail("not_found", 404);
-  const dup = await db(env, `reviews?user_id=eq.${user.id}&professor_id=eq.${professorId}&course=eq.${encodeURIComponent('"'+course.replace(/["\\]/g,"\\$&")+'"')}&select=id`);
+  // 同じ先生へのレビューは1アカウントにつき1件まで
+  const dup = await db(env, `reviews?user_id=eq.${user.id}&professor_id=eq.${professorId}&select=id`);
   if (dup.length) return fail("duplicate", 409);
 
   // コメントは任意。書かれているときだけAIで確認する

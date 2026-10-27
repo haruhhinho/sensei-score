@@ -265,8 +265,8 @@ ja:{
   ["サービス開始",["2026年【月】"]]
  ]},
  contact:{title:"お問い合わせ",lead:"本サービスに関するご質問、ご意見、個人情報の開示等の請求は、下記までご連絡ください。",secs:[
-  ["連絡先",["【お問い合わせ用メールアドレス】","返信までに数日かかる場合があります。"]],
-  ["内容によって窓口が異なります",["投稿の削除のご依頼：「削除依頼」のフォームをご利用ください","著作権に関するご連絡：「著作権ポリシー」に記載の事項を添えてご連絡ください","不適切なレビュー：各レビューの「通報」をご利用ください","先生の掲載のご依頼：大学名、先生のお名前、学部をお知らせください"]],
+  ["連絡先",["senseiscorre@gmail.com","返信までに数日かかる場合があります。"]],
+  ["内容によって窓口が異なります",["投稿の削除のご依頼：「削除依頼」のフォームをご利用ください","著作権に関するご連絡：「著作権ポリシー」に記載の事項を添えて、メールにてご連絡ください","不適切なレビュー：各レビューの「通報」をご利用ください","先生の掲載のご依頼：大学名、先生のお名前、学部をメールにてお知らせください"]],
   ["ご注意",["投稿者の情報についてのお問い合わせには、法令に基づく場合を除きお答えできません。"]]
  ]}
 },
@@ -337,8 +337,8 @@ en:{
   ["Launched",["[Month] 2026"]]
  ]},
  contact:{title:"Contact",lead:"Send questions, feedback and requests regarding your personal information to the address below.",secs:[
-  ["Address",["[Contact email address]","Replies may take a few days."]],
-  ["Where to send what",["Removal of posts: use the “Removal requests” form","Copyright matters: include the items listed in the Copyright Policy","Inappropriate reviews: use “Report” on each review","Requests to list a professor: tell us the university, the professor’s name and department"]],
+  ["Address",["senseiscorre@gmail.com","Replies may take a few days."]],
+  ["Where to send what",["Removal of posts: use the “Removal requests” form","Copyright matters: email us with the items listed in the Copyright Policy","Inappropriate reviews: use “Report” on each review","Requests to list a professor: email us the university, the professor’s name and department"]],
   ["Please note",["We cannot answer questions about who posted a review, except as required by law."]]
  ]}
 }};
@@ -440,7 +440,7 @@ Object.assign(T.ja,{
  emailNotFound:"このメールアドレスは登録されていません。「新規登録」からお進みください。",
  authFail:"ログインできませんでした。時間をおいてもう一度お試しください。", tooMany:"短時間に何度も送信されました。しばらく待ってからお試しください。",
  consentTitle:"利用規約への同意", consentLead:"Sensei 評価を使うには、利用規約とプライバシーポリシーへの同意が必要です。", consentOk:"同意して始める",
- dupReview:"この授業には、すでにレビューを投稿しています。", aiDown:"AIによるチェックが使えないため、今は投稿できません。時間をおいてお試しください。",
+ dupReview:"この先生には、すでにレビューを投稿しています（1人の先生につき1件まで）。", alreadyRated:"この先生には、すでにレビューを投稿しています。レビューは1人の先生につき1件までです。書き直したい場合は、マイページから削除してから投稿してください。", aiDown:"AIによるチェックが使えないため、今は投稿できません。時間をおいてお試しください。",
  meLoginGoogle:"Googleアカウント", meLoginEmail:"メールアドレス",
  imgTooLarge:"写真が大きすぎます。別の写真をお試しください。",
  addedByMe:"あなたが追加した先生", delProf:"この先生を削除", cfProfDel:"この先生のページを削除しますか？", cfUniDel:"この大学を削除しますか？", delHasOthers:"ほかの人のレビューや返信があるため削除できません。必要な場合は削除依頼を送ってください。", delHasExams:"共有された資料があるため削除できません。資料を先に削除するか、削除依頼を送ってください。", delHasProfs:"先生が登録されている大学は削除できません。先に先生を削除するか、削除依頼を送ってください。", delNotOwner:"ご自分で追加したものだけ削除できます。", needMigration:"削除の準備ができていません（管理者の方へ：追加のSQLを実行してください）。", stOpen:"未対応", stDone:"対応済み", markDone:"対応済みにする", markOpen:"未対応に戻す",
@@ -460,7 +460,7 @@ Object.assign(T.en,{
  emailNotFound:"This email address is not registered. Please sign up first.",
  authFail:"Could not log in. Please try again later.", tooMany:"Too many attempts. Please wait a while and try again.",
  consentTitle:"Agree to the terms", consentLead:"To use Sensei Score, you need to agree to the Terms of Use and the Privacy Policy.", consentOk:"Agree and continue",
- dupReview:"You have already reviewed this course.", aiDown:"Posting is unavailable because the AI check is not working. Please try again later.",
+ dupReview:"You have already reviewed this professor (one review per professor).", alreadyRated:"You have already reviewed this professor. You can post one review per professor. To rewrite it, delete it from My page first.", aiDown:"Posting is unavailable because the AI check is not working. Please try again later.",
  meLoginGoogle:"Google account", meLoginEmail:"Email address",
  imgTooLarge:"A photo is too large. Please try another.",
  addedByMe:"You added this professor", delProf:"Delete this professor", cfProfDel:"Delete this professor’s page?", cfUniDel:"Delete this university?", delHasOthers:"This can’t be deleted because other people have posted reviews or replies. Please send a removal request if needed.", delHasExams:"This can’t be deleted because materials have been shared. Delete the materials first or send a removal request.", delHasProfs:"A university with professors can’t be deleted. Delete the professors first or send a removal request.", delNotOwner:"You can only delete what you added.", needMigration:"Deletion isn’t set up yet (admin: please run the additional SQL).", stOpen:"Open", stDone:"Done", markDone:"Mark as done", markOpen:"Reopen",
